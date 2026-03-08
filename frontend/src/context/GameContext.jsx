@@ -39,6 +39,7 @@ export function GameProvider({ children }) {
   const connectWs = useCallback((roomId, playerId) => {
     return new Promise((resolve) => {
       let resolved = false;
+      let opened = false;
       const ws = new WebSocket(`${WS_URL}/ws/${roomId}/${playerId}`);
 
       ws.onmessage = (event) => {
@@ -52,12 +53,13 @@ export function GameProvider({ children }) {
       };
 
       ws.onopen = () => {
+        opened = true;
         if (!resolved) { resolved = true; resolve(true); }
       };
 
       ws.onclose = () => {
         if (!resolved) { resolved = true; resolve(false); }
-        else setError("Connection lost. Please refresh.");
+        else if (opened) setError("Connection lost. Please refresh.");
       };
 
       ws.onerror = () => {
