@@ -55,7 +55,7 @@ export default function HomePage() {
     <div className="page center">
       <div className="hero">
         <div className="logo">🕵️</div>
-        <h1 className="title">Impostersssssssss</h1>
+        <h1 className="title">Impostersssssssssisters</h1>
         <p className="subtitle">Find the imposter among your friends</p>
       </div>
 
