@@ -137,11 +137,14 @@ class RoomManager:
         num_imposters = 2 if len(player_ids) >= 6 else 1
         imposters = player_ids[:num_imposters]
 
+        clue_order = player_ids[:]
+        random.shuffle(clue_order)
+
         word = random.choice(WORDS)
         room["word"] = word
         room["imposter_word"] = WORD_PAIRS.get(word, word)
         room["imposters"] = imposters
-        room["clue_order"] = player_ids
+        room["clue_order"] = clue_order
         room["current_turn"] = 0
         room["state"] = "playing"
         for p in room["players"].values():
