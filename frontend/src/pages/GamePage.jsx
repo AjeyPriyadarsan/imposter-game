@@ -1,0 +1,117 @@
+import { useState } from "react";
+import { useGame } from "../context/GameContext";
+
+export default function GamePage() {
+  const { gameState, playerInfo, sendMessage, error } = useGame();
+  const [clue, setClue] = useState("");
+
+  if (!gameState) return <div className="page center"><p>Loading...</p></div>;
+
+  const isMyTurn = gameState.current_player_id === playerInfo.id;
+  const currentPlayer = gameState.players.find(
+    (p) => p.id === gameState.current_player_id
+  );
+
+  const orderedPlayers = gameState.clue_order
+    .map((id) => gameState.players.find((p) => p.id === id))
+    .filter(Boolean);
+
+  function handleSubmitClue(e) {
+    e.preventDefault();
+    const word = clue.trim();
+    if (!word || word.includes(" ")) return;
+    sendMessage({ type: "submit_clue", clue: word });
+    setClue("");
+  }
+
+  return (
+    <div className="page">
+      <div className="game-header">
+        {gameState.is_imposter ? (
+          <div className="imposter-reveal">
+            <div className="imposter-icon">🎭</div>
+            <h2>You are the IMPOSTER!</h2>
+            {gameState.word ? (
+              <>
+                <p className="word-label">Your word is</p>
+                <div className="secret-word">{gameState.word}</div>
+                <p className="word-hint">This is close to the real word — blend in!</p>
+              </>
+            ) : (
+              <p>Blend in. Don't get caught.</p>
+            )}
+          </div>
+        ) : (
+          <div className="word-reveal">
+            <p className="word-label">The secret word is</p>
+            <div className="secret-word">{gameState.word}</div>
+            <p className="word-hint">Give a clue — but don't make it too obvious!</p>
+          </div>
+        )}
+      </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <div className="game-content">
+        <div className="turn-indicator">
+          {isMyTurn ? (
+            <div className="your-turn-banner">It's your turn!</div>
+          ) : (
+            <div className="waiting-banner">
+              Waiting for <strong>{currentPlayer?.name}</strong> to give a clue...
+            </div>
+          )}
+        </div>
+
+        {isMyTurn && (
+          <form className="clue-form" onSubmit={handleSubmitClue}>
+            <input
+              className="input input-large"
+              type="text"
+              placeholder="One word clue..."
+              value={clue}
+              onChange={(e) => setClue(e.target.value.replace(/\s/g, ""))}
+              maxLength={30}
+              autoFocus
+            />
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={!clue.trim()}
+            >
+              Submit Clue
+            </button>
+          </form>
+        )}
+
+        <div className="clues-section">
+          <h3>Clues Given</h3>
+          <div className="clue-list">
+            {orderedPlayers.map((player, idx) => (
+              <div key={player.id} className="clue-row">
+                <div className="clue-player-info">
+                  <span className="clue-order-num">{idx + 1}</span>
+                  <span className="clue-player-name">
+                    {player.name}
+                    {player.id === playerInfo.id && (
+                      <span className="badge badge-you">You</span>
+                    )}
+                  </span>
+                </div>
+                <div className="clue-value">
+                  {player.clue ? (
+                    <span className="clue-word">{player.clue}</span>
+                  ) : player.id === gameState.current_player_id ? (
+                    <span className="clue-thinking">thinking...</span>
+                  ) : (
+                    <span className="clue-pending">—</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
