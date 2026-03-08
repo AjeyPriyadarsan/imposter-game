@@ -18,7 +18,15 @@ export default function App() {
 
   if (!playerInfo) return <HomePage />;
 
-  switch (gameState?.state) {
+  if (!gameState) {
+    return (
+      <div className="page center">
+        <p>Connecting to room...</p>
+      </div>
+    );
+  }
+
+  switch (gameState.state) {
     case "lobby":
       return <LobbyPage />;
     case "playing":
