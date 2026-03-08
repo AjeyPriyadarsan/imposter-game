@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Branch Policy
+- All code changes must be made **only in the `claude-changes` branch**.
+- Do NOT commit or push — the user handles that manually.
+- After making changes, always provide a suggested git commit message for the user to use.
+
 ## Commands
 
 ### Backend
