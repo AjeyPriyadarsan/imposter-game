@@ -1,9 +1,50 @@
+import { useState, useEffect, useRef } from "react";
 import { useGame } from "../context/GameContext";
+
+function useCountdown(startTime, duration, serverTime) {
+  const [remaining, setRemaining] = useState(null);
+  const offsetRef = useRef(0);
+
+  useEffect(() => {
+    if (!startTime || !duration || !serverTime) {
+      setRemaining(null);
+      return;
+    }
+    offsetRef.current = serverTime - Date.now() / 1000;
+  }, [serverTime, startTime, duration]);
+
+  useEffect(() => {
+    if (!startTime || !duration) {
+      setRemaining(null);
+      return;
+    }
+
+    function tick() {
+      const now = Date.now() / 1000 + offsetRef.current;
+      const elapsed = now - startTime;
+      const left = Math.max(0, Math.ceil(duration - elapsed));
+      setRemaining(left);
+    }
+
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [startTime, duration]);
+
+  return remaining;
+}
 
 export default function VotingPage() {
   const { gameState, playerInfo, sendMessage } = useGame();
 
   if (!gameState) return <div className="page center"><p>Loading...</p></div>;
+
+  const votingTime = gameState.settings?.voting_time || 60;
+  const remaining = useCountdown(
+    gameState.phase_start_time,
+    votingTime,
+    gameState.server_time
+  );
 
   const me = gameState.players.find((p) => p.id === playerInfo.id);
   const hasVoted = me?.vote !== null && me?.vote !== undefined;
@@ -24,6 +65,11 @@ export default function VotingPage() {
       <div className="page-heading">
         <h1>Vote</h1>
         <p>Who do you think is the imposter?</p>
+        {remaining !== null && (
+          <div className={`countdown-badge countdown-inline${remaining <= 10 ? " countdown-urgent" : ""}`}>
+            {remaining}s
+          </div>
+        )}
       </div>
 
       <div className="vote-progress">
@@ -36,7 +82,7 @@ export default function VotingPage() {
         <p className="vote-count">{votesCast}/{totalPlayers} voted</p>
       </div>
 
-      <div className="clues-review card" style={{ maxWidth: 500, width: "100%" }}>
+      <div className="clues-review card" style={{ width: "100%" }}>
         <h3>Clues from this round</h3>
         <div className="clue-list">
           {orderedPlayers.map((player, idx) => (

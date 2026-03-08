@@ -1,6 +1,7 @@
 import json
 import random
 import string
+import time
 from typing import Dict, Optional
 from fastapi import WebSocket
 from word_list import WORDS, WORD_PAIRS
@@ -54,10 +55,63 @@ class RoomManager:
             "imposters": [],
             "clue_order": [],
             "current_turn": 0,
+            "settings": {
+                "num_imposters": 1,
+                "thinking_time": 30,
+                "voting_time": 60,
+                "num_rounds": 1,
+            },
         }
         self._save_room(room)
         self.connections[room_id] = {}
         return room_id, player_id
+
+    @staticmethod
+    def get_max_imposters(player_count: int) -> int:
+        return min(3, max(1, (player_count - 1) // 2))
+
+    def update_settings(self, room_id: str, player_id: str, settings: dict) -> tuple[bool, str]:
+        room = self._get_room(room_id)
+        if not room:
+            return False, "Room not found"
+        if room["state"] != "lobby":
+            return False, "Can only change settings in lobby"
+        if room["host"] != player_id:
+            return False, "Only the host can change settings"
+
+        valid_thinking = [10, 20, 30, 40, 50, 60]
+        valid_voting = [30, 45, 60, 90, 120]
+        valid_rounds = [1, 2, 3]
+
+        current = room.get("settings", {
+            "num_imposters": 1, "thinking_time": 30,
+            "voting_time": 60, "num_rounds": 1,
+        })
+
+        if "num_imposters" in settings:
+            val = settings["num_imposters"]
+            if isinstance(val, int) and 1 <= val <= 3:
+                max_imp = self.get_max_imposters(len(room["players"]))
+                current["num_imposters"] = min(val, max_imp)
+
+        if "thinking_time" in settings:
+            val = settings["thinking_time"]
+            if val in valid_thinking:
+                current["thinking_time"] = val
+
+        if "voting_time" in settings:
+            val = settings["voting_time"]
+            if val in valid_voting:
+                current["voting_time"] = val
+
+        if "num_rounds" in settings:
+            val = settings["num_rounds"]
+            if val in valid_rounds:
+                current["num_rounds"] = val
+
+        room["settings"] = current
+        self._save_room(room)
+        return True, ""
 
     def join_room(self, room_id: str, player_name: str) -> Optional[str]:
         room = self._get_room(room_id)
@@ -103,7 +157,10 @@ class RoomManager:
 
         if room["current_turn"] >= len(clue_order):
             room["state"] = "voting"
+            room["phase_start_time"] = time.time()
             changed = True
+        elif changed:
+            room["turn_start_time"] = time.time()
 
         if changed:
             self._save_room(room)
@@ -134,7 +191,8 @@ class RoomManager:
         player_ids = list(room["players"].keys())
         random.shuffle(player_ids)
 
-        num_imposters = 2 if len(player_ids) >= 6 else 1
+        settings = room.get("settings", {"num_imposters": 1})
+        num_imposters = min(settings["num_imposters"], self.get_max_imposters(len(player_ids)))
         imposters = player_ids[:num_imposters]
 
         clue_order = player_ids[:]
@@ -147,6 +205,7 @@ class RoomManager:
         room["clue_order"] = clue_order
         room["current_turn"] = 0
         room["state"] = "playing"
+        room["turn_start_time"] = time.time()
         for p in room["players"].values():
             p["clue"] = None
             p["vote"] = None
@@ -168,6 +227,39 @@ class RoomManager:
 
         if room["current_turn"] >= len(clue_order):
             room["state"] = "voting"
+            room["phase_start_time"] = time.time()
+        else:
+            room["turn_start_time"] = time.time()
+        self._save_room(room)
+        return True
+
+    def skip_turn(self, room_id: str) -> bool:
+        """Skip the current player's turn (timer expired). Returns True if state changed."""
+        room = self._get_room(room_id)
+        if not room or room["state"] != "playing":
+            return False
+        if room["current_turn"] >= len(room["clue_order"]):
+            return False
+
+        current_pid = room["clue_order"][room["current_turn"]]
+        room["players"][current_pid]["clue"] = "(skipped)"
+        room["current_turn"] += 1
+
+        if room["current_turn"] >= len(room["clue_order"]):
+            room["state"] = "voting"
+            room["phase_start_time"] = time.time()
+        else:
+            room["turn_start_time"] = time.time()
+
+        self._save_room(room)
+        return True
+
+    def force_end_voting(self, room_id: str) -> bool:
+        """Force voting to end (timer expired). Returns True if state changed."""
+        room = self._get_room(room_id)
+        if not room or room["state"] != "voting":
+            return False
+        room["state"] = "results"
         self._save_room(room)
         return True
 
@@ -263,6 +355,11 @@ class RoomManager:
         else:
             word = None
 
+        default_settings = {
+            "num_imposters": 1, "thinking_time": 30,
+            "voting_time": 60, "num_rounds": 1,
+        }
+
         return {
             "room_id": room_id,
             "state": room["state"],
@@ -273,6 +370,11 @@ class RoomManager:
             "is_imposter": is_imposter,
             "word": word,
             "results": results,
+            "settings": room.get("settings", default_settings),
+            "max_imposters": self.get_max_imposters(len(room["players"])),
+            "turn_start_time": room.get("turn_start_time"),
+            "phase_start_time": room.get("phase_start_time"),
+            "server_time": time.time(),
         }
 
     async def connect(self, room_id: str, player_id: str, websocket: WebSocket):

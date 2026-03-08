@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useGame } from "../context/GameContext";
+import { Plus, LogIn, ArrowLeft, Gamepad2 } from "lucide-react";
 
 export default function HomePage() {
   const { createRoom, joinRoom, error, pendingRoomCode } = useGame();
@@ -62,7 +63,7 @@ export default function HomePage() {
       {error && <div className="alert alert-error">{error}</div>}
 
       {!mode && (
-        <div className="card" style={{ maxWidth: 360 }}>
+        <div className="card" style={{ width: "100%" }}>
           <input
             className="input"
             type="text"
@@ -74,17 +75,19 @@ export default function HomePage() {
           />
           <div className="btn-group">
             <button
-              className="btn btn-primary"
+              className="btn btn-primary btn-full"
               onClick={() => name.trim() && setMode("create")}
               disabled={!name.trim()}
             >
+              <Plus size={16} />
               Create Room
             </button>
             <button
-              className="btn btn-secondary"
+              className="btn btn-secondary btn-full"
               onClick={() => name.trim() && setMode("join")}
               disabled={!name.trim()}
             >
+              <LogIn size={16} />
               Join Room
             </button>
           </div>
@@ -92,25 +95,44 @@ export default function HomePage() {
       )}
 
       {mode === "create" && (
-        <form
-          className="card"
-          style={{ maxWidth: 360 }}
-          onSubmit={handleCreate}
-        >
-          <p className="label">
-            Playing as <strong>{name}</strong>
-          </p>
-          <button className="btn btn-primary" type="submit" disabled={loading}>
-            {loading ? "Creating..." : "Create Room"}
-          </button>
-          <button className="btn btn-ghost" type="button" onClick={handleBack}>
-            Back
-          </button>
+        <form className="create-confirm-card" onSubmit={handleCreate}>
+          <div className="create-confirm-avatar">
+            {name.charAt(0).toUpperCase()}
+          </div>
+
+          <div className="create-confirm-info">
+            <p className="ready-label">Ready to host</p>
+            <p className="player-name-display">{name}</p>
+          </div>
+
+          <div className="create-confirm-actions">
+            <button
+              className="btn btn-primary btn-full"
+              type="submit"
+              disabled={loading}
+              style={{ padding: "13px 20px", fontSize: "15px" }}
+            >
+              {loading ? "Creating room..." : (
+                <>
+                  <Plus size={17} />
+                  Create Room
+                </>
+              )}
+            </button>
+            <button
+              className="btn btn-ghost btn-full"
+              type="button"
+              onClick={handleBack}
+            >
+              <ArrowLeft size={15} />
+              Back
+            </button>
+          </div>
         </form>
       )}
 
       {mode === "join" && (
-        <form className="card" style={{ maxWidth: 360 }} onSubmit={handleJoin}>
+        <form className="card" style={{ width: "100%" }} onSubmit={handleJoin}>
           <input
             className="input"
             type="text"
@@ -121,7 +143,7 @@ export default function HomePage() {
             autoFocus={!name}
           />
           <input
-            className="input"
+            className="input input-large"
             type="text"
             placeholder="Room code (e.g. ABCD)"
             value={roomCode}
@@ -129,28 +151,35 @@ export default function HomePage() {
             maxLength={4}
             readOnly={!!pendingRoomCode}
           />
-          <button
-            className="btn btn-primary"
-            type="submit"
-            disabled={loading || roomCode.length !== 4 || !name.trim()}
-          >
-            {loading ? "Joining..." : "Join Room"}
-          </button>
-          {!pendingRoomCode && (
+          <div className="btn-group">
             <button
-              className="btn btn-ghost"
-              type="button"
-              onClick={handleBack}
+              className="btn btn-primary btn-full"
+              type="submit"
+              disabled={loading || roomCode.length !== 4 || !name.trim()}
             >
-              Back
+              <LogIn size={16} />
+              {loading ? "Joining..." : "Join Room"}
             </button>
-          )}
+            {!pendingRoomCode && (
+              <button
+                className="btn btn-ghost btn-full"
+                type="button"
+                onClick={handleBack}
+              >
+                <ArrowLeft size={15} />
+                Back
+              </button>
+            )}
+          </div>
         </form>
       )}
 
       {!mode && (
         <div className="how-to-play">
-          <h3>How to play</h3>
+          <h3>
+            <Gamepad2 size={13} />
+            How to play
+          </h3>
           <ol>
             <li>Everyone gets the same secret word — except 1-2 imposters</li>
             <li>Take turns giving a one-word clue about the word</li>
