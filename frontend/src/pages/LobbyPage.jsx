@@ -40,19 +40,25 @@ export default function LobbyPage() {
           <h2>Players ({playerCount}/8)</h2>
         </div>
         <ul className="player-list">
-          {gameState.players.map((p) => (
-            <li key={p.id} className="player-item">
-              <span className="player-name">
-                {p.name}
-                {p.id === playerInfo.id && (
-                  <span className="badge badge-you">You</span>
-                )}
-                {p.is_host && (
-                  <span className="badge badge-host">Host</span>
-                )}
-              </span>
-            </li>
-          ))}
+          {gameState.players.map((p, idx) => {
+            const colors = ["#7c3aed", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444", "#8b5cf6", "#06b6d4"];
+            return (
+              <li key={p.id} className="player-item">
+                <span className="player-name">
+                  <span className="player-avatar" style={{ background: colors[idx % colors.length] }}>
+                    {p.name.charAt(0).toUpperCase()}
+                  </span>
+                  {p.name}
+                  {p.id === playerInfo.id && (
+                    <span className="badge badge-you">You</span>
+                  )}
+                  {p.is_host && (
+                    <span className="badge badge-host">Host</span>
+                  )}
+                </span>
+              </li>
+            );
+          })}
         </ul>
 
         {isHost ? (

@@ -59,8 +59,9 @@ export default function VotingPage() {
         <div className="vote-grid">
           <h3>Tap to vote</h3>
           <div className="vote-buttons">
-            {gameState.players.map((player) => {
+            {gameState.players.map((player, idx) => {
               const isSelf = player.id === playerInfo.id;
+              const colors = ["#7c3aed", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444", "#8b5cf6", "#06b6d4"];
               return (
                 <button
                   key={player.id}
@@ -68,6 +69,9 @@ export default function VotingPage() {
                   onClick={() => handleVote(player.id)}
                   disabled={isSelf}
                 >
+                  <span className="vote-avatar" style={{ background: colors[idx % colors.length] }}>
+                    {player.name.charAt(0).toUpperCase()}
+                  </span>
                   <span className="vote-player-name">{player.name}</span>
                   {isSelf && <span className="vote-self-hint">(you)</span>}
                 </button>

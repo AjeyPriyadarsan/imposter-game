@@ -20,7 +20,7 @@ app.add_middleware(
 )
 
 redis_url = os.environ.get("REDIS_URL", "redis://localhost:6380")
-redis_client = redis.from_url(redis_url, decode_responses=True, ssl_cert_reqs=None)
+redis_client = redis.from_url(redis_url, decode_responses=True)
 manager = RoomManager(redis_client=redis_client)
 
 
