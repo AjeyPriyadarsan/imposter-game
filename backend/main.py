@@ -1,20 +1,26 @@
+import os
 import redis
+from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from room_manager import RoomManager
 
+load_dotenv()
+
 app = FastAPI()
 
+cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-redis_client = redis.Redis(host="localhost", port=6380, decode_responses=True)
+redis_url = os.environ.get("REDIS_URL", "redis://localhost:6380")
+redis_client = redis.from_url(redis_url, decode_responses=True, ssl_cert_reqs=None)
 manager = RoomManager(redis_client=redis_client)
 
 
