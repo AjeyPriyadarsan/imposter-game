@@ -14,3 +14,7 @@ __pycache__/
 # Frontend dependencies and build output
 frontend/node_modules/
 frontend/dist/
+
+# PyCharm / IntelliJ
+backend/.idea/
+*.iml
