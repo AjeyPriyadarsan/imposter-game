@@ -19,7 +19,9 @@ export default function HomePage() {
           const { name: storedName } = JSON.parse(stored);
           setName(storedName);
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       setMode("join");
     }
   }, [pendingRoomCode]);
@@ -53,7 +55,7 @@ export default function HomePage() {
     <div className="page center">
       <div className="hero">
         <div className="logo">🕵️</div>
-        <h1 className="title">Imposter</h1>
+        <h1 className="title">Impostersssssssss</h1>
         <p className="subtitle">Find the imposter among your friends</p>
       </div>
 
@@ -90,8 +92,14 @@ export default function HomePage() {
       )}
 
       {mode === "create" && (
-        <form className="card" style={{ maxWidth: 360 }} onSubmit={handleCreate}>
-          <p className="label">Playing as <strong>{name}</strong></p>
+        <form
+          className="card"
+          style={{ maxWidth: 360 }}
+          onSubmit={handleCreate}
+        >
+          <p className="label">
+            Playing as <strong>{name}</strong>
+          </p>
           <button className="btn btn-primary" type="submit" disabled={loading}>
             {loading ? "Creating..." : "Create Room"}
           </button>
@@ -129,7 +137,11 @@ export default function HomePage() {
             {loading ? "Joining..." : "Join Room"}
           </button>
           {!pendingRoomCode && (
-            <button className="btn btn-ghost" type="button" onClick={handleBack}>
+            <button
+              className="btn btn-ghost"
+              type="button"
+              onClick={handleBack}
+            >
               Back
             </button>
           )}
