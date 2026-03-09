@@ -192,6 +192,7 @@ body {
 .badge-you { background: var(--primary-light); color: #a78bfa; }
 .badge-host { background: var(--warning-light); color: #fbbf24; }
 .badge-imposter { background: var(--danger-light); color: #f87171; }
+.badge-revealed { background: #fef3c7; color: #d97706; }
 
 /* =====================
    Home Page
@@ -845,6 +846,39 @@ body {
   background: var(--danger-light);
   color: #f87171;
   border: 1px solid var(--danger);
+}
+
+.outcome-tie {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid #f59e0b;
+}
+
+.outcome-tie h1 {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  color: #fbbf24;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.result-tie {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  border: 1px solid #f59e0b;
+}
+
+.clue-revealed {
+  color: #f87171;
+  font-style: italic;
+  font-size: 13px;
+}
+
+.round-indicator {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
 
 .results-grid {

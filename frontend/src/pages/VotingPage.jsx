@@ -47,12 +47,17 @@ export default function VotingPage() {
   );
 
   const me = gameState.players.find((p) => p.id === playerInfo.id);
+  const isBanned = me?.revealed === true || me?.eliminated === true;
   const hasVoted = me?.vote !== null && me?.vote !== undefined;
-  const votesCast = gameState.players.filter((p) => p.vote !== null && p.vote !== undefined).length;
-  const totalPlayers = gameState.players.length;
+  // Eligible voters: not revealed, not eliminated
+  const eligibleVoters = gameState.players.filter((p) => !p.revealed && !p.eliminated);
+  const votesCast = eligibleVoters.filter((p) => p.vote !== null && p.vote !== undefined).length;
+  const totalVoters = eligibleVoters.length;
+  // Voteable targets: not revealed, not eliminated
+  const voteTargets = gameState.players.filter((p) => !p.revealed && !p.eliminated);
 
   function handleVote(targetId) {
-    if (hasVoted || targetId === playerInfo.id) return;
+    if (isBanned || hasVoted) return;
     sendMessage({ type: "submit_vote", voted_id: targetId });
   }
 
@@ -76,10 +81,10 @@ export default function VotingPage() {
         <div className="vote-progress-bar">
           <div
             className="vote-progress-fill"
-            style={{ width: `${(votesCast / totalPlayers) * 100}%` }}
+            style={{ width: `${(votesCast / totalVoters) * 100}%` }}
           />
         </div>
-        <p className="vote-count">{votesCast}/{totalPlayers} voted</p>
+        <p className="vote-count">{votesCast}/{totalVoters} voted</p>
       </div>
 
       <div className="clues-review card" style={{ width: "100%" }}>
@@ -91,13 +96,21 @@ export default function VotingPage() {
                 <span className="clue-order-num">{idx + 1}</span>
                 <span className="clue-player-name">{player.name}</span>
               </div>
-              <span className="clue-word">{player.clue || "—"}</span>
+              {player.clue === "__word_revealed__" ? (
+                <span className="clue-revealed">⚠️ Typed the word!</span>
+              ) : (
+                <span className="clue-word">{player.clue || "—"}</span>
+              )}
             </div>
           ))}
         </div>
       </div>
 
-      {hasVoted ? (
+      {isBanned ? (
+        <div className="voted-message">
+          <p>You have been eliminated and cannot vote.</p>
+        </div>
+      ) : hasVoted ? (
         <div className="voted-message">
           <p>Vote cast! Waiting for others...</p>
         </div>
@@ -105,17 +118,17 @@ export default function VotingPage() {
         <div className="vote-grid">
           <h3>Tap to vote</h3>
           <div className="vote-buttons">
-            {gameState.players.map((player, idx) => {
+            {voteTargets.map((player, idx) => {
               const isSelf = player.id === playerInfo.id;
               const colors = ["#7c3aed", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444", "#8b5cf6", "#06b6d4"];
+              const colorIdx = gameState.players.findIndex((p) => p.id === player.id);
               return (
                 <button
                   key={player.id}
-                  className={`vote-btn ${isSelf ? "vote-btn-disabled" : ""}`}
+                  className="vote-btn"
                   onClick={() => handleVote(player.id)}
-                  disabled={isSelf}
                 >
-                  <span className="vote-avatar" style={{ background: colors[idx % colors.length] }}>
+                  <span className="vote-avatar" style={{ background: colors[colorIdx % colors.length] }}>
                     {player.name.charAt(0).toUpperCase()}
                   </span>
                   <span className="vote-player-name">{player.name}</span>

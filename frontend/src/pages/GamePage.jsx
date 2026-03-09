@@ -145,7 +145,9 @@ export default function GamePage() {
                   </span>
                 </div>
                 <div className="clue-value">
-                  {player.clue ? (
+                  {player.clue === "__word_revealed__" ? (
+                    <span className="clue-revealed">⚠️ Typed the word!</span>
+                  ) : player.clue ? (
                     <span className="clue-word">{player.clue}</span>
                   ) : player.id === gameState.current_player_id ? (
                     <span className="clue-thinking">thinking...</span>

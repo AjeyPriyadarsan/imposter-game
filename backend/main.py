@@ -171,9 +171,17 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                 if voted_id:
                     if manager.submit_vote(room_id, player_id, voted_id):
                         room = manager._get_room(room_id)
-                        if room and room["state"] == "results":
+                        if room and room["state"] in ("results", "round_end"):
                             cancel_timer(room_id)
                         await manager.broadcast(room_id)
+
+            elif msg_type == "next_round":
+                room = manager._get_room(room_id)
+                if room and room["host"] == player_id and room["state"] == "round_end":
+                    cancel_timer(room_id)
+                    if manager.next_round(room_id):
+                        await manager.broadcast(room_id)
+                        schedule_turn_timer(room_id)
 
             elif msg_type == "play_again":
                 room = manager._get_room(room_id)
@@ -218,4 +226,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
             elif room["state"] == "voting":
                 if manager.check_voting_complete(room_id):
                     cancel_timer(room_id)
+            elif room["state"] == "round_end":
+                pass  # Nothing to do on disconnect during round_end
             await manager.broadcast(room_id)
