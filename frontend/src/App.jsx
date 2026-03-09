@@ -4,6 +4,7 @@ import LobbyPage from "./pages/LobbyPage";
 import GamePage from "./pages/GamePage";
 import VotingPage from "./pages/VotingPage";
 import ResultsPage from "./pages/ResultsPage";
+import RoundEndPage from "./pages/RoundEndPage";
 
 export default function App() {
   const { gameState, playerInfo, reconnecting } = useGame();
@@ -33,6 +34,8 @@ export default function App() {
       return <GamePage />;
     case "voting":
       return <VotingPage />;
+    case "round_end":
+      return <RoundEndPage />;
     case "results":
       return <ResultsPage />;
     default:
