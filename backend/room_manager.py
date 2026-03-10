@@ -565,8 +565,9 @@ class RoomManager:
             "skip_won": room.get("last_skip_won", False),
         }
 
-    def get_room_state(self, room_id: str, player_id: str) -> Optional[dict]:
-        room = self._get_room(room_id)
+    def get_room_state(self, room_id: str, player_id: str, room: dict = None) -> Optional[dict]:
+        if room is None:
+            room = self._get_room(room_id)
         if not room:
             return None
 
@@ -661,9 +662,13 @@ class RoomManager:
     async def broadcast(self, room_id: str):
         if room_id not in self.connections:
             return
+        # Fetch room from Redis once, reuse for all players
+        room = self._get_room(room_id)
+        if not room:
+            return
         dead = []
         for pid, ws in self.connections[room_id].items():
-            state = self.get_room_state(room_id, pid)
+            state = self.get_room_state(room_id, pid, room=room)
             if state:
                 try:
                     await ws.send_json({"type": "state_update", "payload": state})
