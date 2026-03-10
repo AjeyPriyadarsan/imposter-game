@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useGame } from "../context/GameContext";
+import { SkipForward, Scale, Ban } from "lucide-react";
 
 const AUTO_ADVANCE_DELAY = 30;
 
@@ -55,7 +56,7 @@ export default function RoundEndPage() {
       <div className="round-indicator">Round {currentRound} of {totalRounds}</div>
 
       <div className={`outcome-banner ${(was_tie || skip_won) ? "outcome-tie" : "outcome-escaped"}`}>
-        <div className="outcome-icon">{skip_won ? "⏭️" : was_tie ? "🤝" : "🚫"}</div>
+        <div className="outcome-icon">{skip_won ? <SkipForward size={44} /> : was_tie ? <Scale size={44} /> : <Ban size={44} />}</div>
         <h1>
           {skip_won
             ? "Vote Skipped!"
@@ -106,7 +107,7 @@ export default function RoundEndPage() {
                     className="vote-avatar"
                     style={{ background: "#6b7280", width: 28, height: 28, fontSize: 13 }}
                   >
-                    ⏭
+                    <SkipForward size={14} />
                   </span>
                   <span className="clue-player-name" style={{ color: "var(--text-muted, #9ca3af)" }}>
                     Skipped / No vote

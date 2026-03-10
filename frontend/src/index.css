@@ -52,7 +52,7 @@ body {
 .page {
   min-height: 100vh;
   padding: 24px 20px 56px;
-  max-width: 520px;
+  max-width: 720px;
   margin: 0 auto;
 }
 
@@ -238,6 +238,7 @@ body {
   font-size: 56px;
   line-height: 1;
   margin-bottom: 8px;
+  color: var(--primary);
 }
 
 .title {
@@ -476,6 +477,39 @@ body {
   border-radius: 99px;
 }
 
+/* Lobby Two-Column Layout */
+.lobby-two-col {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.lobby-col-card {
+  min-width: 0;
+}
+
+.lobby-scroll-area {
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.lobby-scroll-area::-webkit-scrollbar { width: 4px; }
+.lobby-scroll-area::-webkit-scrollbar-track { background: transparent; }
+.lobby-scroll-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+@media (max-width: 600px) {
+  .lobby-two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .lobby-scroll-area {
+    max-height: 260px;
+  }
+}
+
 /* =====================
    Game Page
    ===================== */
@@ -495,8 +529,10 @@ body {
 }
 
 .imposter-icon {
-  font-size: 44px;
   margin-bottom: 8px;
+  display: flex;
+  justify-content: center;
+  color: #f87171;
 }
 
 .imposter-reveal h2 {
@@ -909,7 +945,11 @@ body {
   border: 1px solid var(--danger);
 }
 
-.outcome-icon { font-size: 44px; margin-bottom: 8px; }
+.outcome-icon { margin-bottom: 8px; display: flex; justify-content: center; }
+
+.outcome-caught .outcome-icon { color: #4ade80; }
+.outcome-escaped .outcome-icon { color: #f87171; }
+.outcome-tie .outcome-icon { color: #fbbf24; }
 
 .outcome-caught h1 {
   font-family: "Space Grotesk", "Inter", sans-serif;
@@ -1148,7 +1188,6 @@ body {
    Settings Card (Lobby Page)
    ===================== */
 .settings-card {
-  width: 100%;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1524,3 +1563,42 @@ body {
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* =====================
+   Mobile Responsiveness
+   ===================== */
+@media (max-width: 480px) {
+  /* Typography scaling */
+  .title { font-size: 28px; }
+  .room-code { font-size: 32px; letter-spacing: 0.12em; }
+  .secret-word { font-size: 28px; }
+  .page-heading h1 { font-size: 24px; }
+  .outcome-caught h1,
+  .outcome-escaped h1,
+  .outcome-tie h1 { font-size: 22px; }
+  .create-confirm-info .player-name-display { font-size: 20px; }
+  .countdown-badge { font-size: 18px; }
+
+  /* Layout fixes */
+  .page { padding: 16px 12px 40px; }
+  .room-code-display { padding: 16px 20px; }
+  .vote-btn { padding: 10px; }
+  .clue-form { flex-direction: column; }
+  .clue-form .input-large { flex: unset; }
+  .imposter-reveal,
+  .word-reveal { padding: 16px; }
+  .card { padding: 16px; }
+  .settings-card { padding: 16px; }
+  .outcome-banner { padding: 20px; }
+  .create-confirm-card { padding: 20px 16px; }
+  .create-confirm-avatar {
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 360px) {
+  .vote-buttons { grid-template-columns: 1fr; }
+  .room-code { font-size: 28px; }
+}

@@ -179,7 +179,7 @@ export default function VotingPage() {
                 )}
               </div>
               {player.clue === "__word_revealed__" ? (
-                <span className="clue-revealed">⚠️ Typed the word!</span>
+                <span className="clue-revealed"><AlertTriangle size={13} style={{ marginRight: 4, verticalAlign: "middle" }} /> Typed the word!</span>
               ) : (
                 <span className="clue-word">{player.clue || "—"}</span>
               )}

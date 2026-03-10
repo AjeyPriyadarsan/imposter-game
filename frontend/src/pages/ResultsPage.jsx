@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useGame } from "../context/GameContext";
+import { Target, Siren, Scale, ShieldOff, AlertTriangle } from "lucide-react";
 import ConfirmModal from "../components/ConfirmModal";
 
 const AUTO_LOBBY_DELAY = 30;
@@ -65,22 +66,22 @@ export default function ResultsPage() {
   let bannerClass, bannerIcon, bannerTitle, bannerSub;
   if (imposter_guessed) {
     bannerClass = "outcome-escaped";
-    bannerIcon = "🎯";
+    bannerIcon = <Target size={44} />;
     bannerTitle = "Imposter Guessed the Word!";
     bannerSub = results.win_reason || "The imposter wins!";
   } else if (caught) {
     bannerClass = "outcome-caught";
-    bannerIcon = "🚨";
+    bannerIcon = <Siren size={44} />;
     bannerTitle = "Imposter Caught!";
     bannerSub = results.win_reason || "The crew wins!";
   } else if (tie) {
     bannerClass = "outcome-tie";
-    bannerIcon = "🤝";
+    bannerIcon = <Scale size={44} />;
     bannerTitle = "Imposter Wins!";
     bannerSub = results.win_reason || "The crew couldn't agree — imposter escapes!";
   } else {
     bannerClass = "outcome-escaped";
-    bannerIcon = "🎭";
+    bannerIcon = <ShieldOff size={44} />;
     bannerTitle = "Imposter Escaped!";
     bannerSub = results.win_reason || "The imposter fooled everyone";
   }
@@ -152,7 +153,7 @@ export default function ResultsPage() {
                   </div>
                   <div className="result-right">
                     {player.clue === "__word_revealed__" ? (
-                      <span className="clue-revealed">Typed the word!</span>
+                      <span className="clue-revealed"><AlertTriangle size={13} style={{ marginRight: 4, verticalAlign: "middle" }} /> Typed the word!</span>
                     ) : (
                       <span className="clue-word">{player.clue || "—"}</span>
                     )}
