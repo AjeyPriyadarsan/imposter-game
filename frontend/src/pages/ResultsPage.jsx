@@ -8,10 +8,22 @@ export default function ResultsPage() {
   const { results } = gameState;
   const isHost = gameState.host === playerInfo.id;
   const iWasImposter = gameState.is_imposter;
-  const caught = results.caught;
+
+  const currentRound = gameState.current_round || 1;
+  const totalRounds = gameState.total_rounds || 1;
+
+  // Determine outcome
+  const { caught, tie, imposter_guessed } = results;
 
   // Did I win?
-  const iWon = iWasImposter ? !caught : caught;
+  let iWon;
+  if (imposter_guessed) {
+    iWon = iWasImposter;
+  } else if (caught) {
+    iWon = !iWasImposter; // innocents win
+  } else {
+    iWon = iWasImposter; // imposter wins
+  }
 
   const orderedPlayers = gameState.clue_order
     .map((id) => gameState.players.find((p) => p.id === id))
@@ -21,22 +33,40 @@ export default function ResultsPage() {
     sendMessage({ type: "play_again" });
   }
 
+  // Outcome banner
+  let bannerClass, bannerIcon, bannerTitle, bannerSub;
+  if (imposter_guessed) {
+    bannerClass = "outcome-escaped";
+    bannerIcon = "🎯";
+    bannerTitle = "Imposter Guessed the Word!";
+    bannerSub = "The imposter wins!";
+  } else if (caught) {
+    bannerClass = "outcome-caught";
+    bannerIcon = "🚨";
+    bannerTitle = "Imposter Caught!";
+    bannerSub = "The crew wins!";
+  } else if (tie) {
+    bannerClass = "outcome-tie";
+    bannerIcon = "🤝";
+    bannerTitle = "Imposter Wins by Tie!";
+    bannerSub = "The crew couldn't agree — imposter escapes!";
+  } else {
+    bannerClass = "outcome-escaped";
+    bannerIcon = "🎭";
+    bannerTitle = "Imposter Escaped!";
+    bannerSub = "The imposter fooled everyone";
+  }
+
   return (
     <div className="page center">
-      <div className={`outcome-banner ${caught ? "outcome-caught" : "outcome-escaped"}`}>
-        {caught ? (
-          <>
-            <div className="outcome-icon">🚨</div>
-            <h1>Imposter Caught!</h1>
-            <p>The crew wins this round</p>
-          </>
-        ) : (
-          <>
-            <div className="outcome-icon">🎭</div>
-            <h1>Imposter Escaped!</h1>
-            <p>The imposter fooled everyone</p>
-          </>
-        )}
+      {totalRounds > 1 && (
+        <div className="round-indicator">Round {currentRound} of {totalRounds}</div>
+      )}
+
+      <div className={`outcome-banner ${bannerClass}`}>
+        <div className="outcome-icon">{bannerIcon}</div>
+        <h1>{bannerTitle}</h1>
+        <p>{bannerSub}</p>
       </div>
 
       <div className={`personal-result ${iWon ? "result-win" : "result-lose"}`}>
@@ -70,7 +100,6 @@ export default function ResultsPage() {
             {orderedPlayers.map((player, idx) => {
               const isImposter = results.imposters.includes(player.id);
               const voteCount = results.vote_counts?.[player.id] || 0;
-              const votedFor = gameState.players.find((p) => p.vote === player.id);
               return (
                 <div
                   key={player.id}
@@ -81,11 +110,17 @@ export default function ResultsPage() {
                     <span className="clue-player-name">
                       {player.name}
                       {isImposter && <span className="badge badge-imposter">Imposter</span>}
+                      {player.revealed && <span className="badge badge-revealed">Revealed</span>}
+                      {player.eliminated && <span className="badge badge-revealed">Eliminated</span>}
                       {player.id === playerInfo.id && <span className="badge badge-you">You</span>}
                     </span>
                   </div>
                   <div className="result-right">
-                    <span className="clue-word">{player.clue || "—"}</span>
+                    {player.clue === "__word_revealed__" ? (
+                      <span className="clue-revealed">Typed the word!</span>
+                    ) : (
+                      <span className="clue-word">{player.clue || "—"}</span>
+                    )}
                     {voteCount > 0 && (
                       <span className="vote-tally">
                         {voteCount} vote{voteCount !== 1 ? "s" : ""}
@@ -101,11 +136,11 @@ export default function ResultsPage() {
 
       <div className="results-actions">
         {isHost ? (
-          <button className="btn btn-primary" onClick={handlePlayAgain}>
+          <button className="btn btn-secondary" onClick={handlePlayAgain}>
             Play Again
           </button>
         ) : (
-          <p className="hint">Waiting for host to start a new round...</p>
+          <p className="hint">Waiting for host to start a new game...</p>
         )}
       </div>
     </div>
