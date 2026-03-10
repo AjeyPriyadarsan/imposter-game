@@ -296,10 +296,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                 if not (room and room["host"] == player_id and target_id
                         and target_id != player_id and target_id in room.get("players", {})):
                     continue
-                # Close the target's WebSocket connection
+                # Notify and close the target's WebSocket connection
                 target_ws = manager.connections.get(room_id, {}).get(target_id)
                 if target_ws:
                     try:
+                        await target_ws.send_json({"type": "kicked"})
                         await target_ws.close(code=4008)
                     except Exception:
                         pass
