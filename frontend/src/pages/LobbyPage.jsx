@@ -4,7 +4,7 @@ import { Copy, Check, Settings, Users, Timer, Vote, Layers, UserX, Play, Eye, Ga
 import ConfirmModal from "../components/ConfirmModal";
 
 export default function LobbyPage() {
-  const { gameState, playerInfo, sendMessage, leaveRoom, error } = useGame();
+  const { gameState, playerInfo, sendMessage, updateSettings, leaveRoom, error } = useGame();
   const [copied, setCopied] = useState(false);
   const [idleSecsLeft, setIdleSecsLeft] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -54,7 +54,7 @@ export default function LobbyPage() {
   }
 
   function updateSetting(key, value) {
-    sendMessage({ type: "update_settings", settings: { [key]: value } });
+    updateSettings({ [key]: value });
   }
 
   const thinkingOptions = [10, 20, 30, 40, 50, 60];
