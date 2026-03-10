@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useGame } from "../context/GameContext";
-import { Plus, LogIn, ArrowLeft, Gamepad2 } from "lucide-react";
+import { Plus, LogIn, ArrowLeft, Gamepad2, Fingerprint } from "lucide-react";
 
 export default function HomePage() {
   const { createRoom, joinRoom, error, pendingRoomCode } = useGame();
@@ -55,7 +55,7 @@ export default function HomePage() {
   return (
     <div className="page center">
       <div className="hero">
-        <div className="logo">🕵️</div>
+        <div className="logo"><Fingerprint size={56} /></div>
         <h1 className="title">Imposter</h1>
         <p className="subtitle">Find the imposter among your friends</p>
       </div>
@@ -160,16 +160,14 @@ export default function HomePage() {
               <LogIn size={16} />
               {loading ? "Joining..." : "Join Room"}
             </button>
-            {!pendingRoomCode && (
-              <button
-                className="btn btn-ghost btn-full"
-                type="button"
-                onClick={handleBack}
-              >
-                <ArrowLeft size={15} />
-                Back
-              </button>
-            )}
+            <button
+              className="btn btn-ghost btn-full"
+              type="button"
+              onClick={handleBack}
+            >
+              <ArrowLeft size={15} />
+              Back
+            </button>
           </div>
         </form>
       )}

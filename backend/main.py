@@ -56,7 +56,7 @@ async def _idle_lobby_timer(room_id: str):
         expires = room.get("idle_expires_at", now)
         remaining = expires - now
         if remaining <= 0:
-            # Close all connections and delete the room
+            # First pass: send room_closed to all
             connections = dict(manager.connections.get(room_id, {}))
             for pid, ws in connections.items():
                 try:
@@ -64,6 +64,12 @@ async def _idle_lobby_timer(room_id: str):
                         "type": "room_closed",
                         "payload": {"message": "Room closed due to inactivity"}
                     })
+                except Exception:
+                    pass
+            await asyncio.sleep(0.5)
+            # Second pass: close all connections
+            for pid, ws in connections.items():
+                try:
                     await ws.close()
                 except Exception:
                     pass
@@ -188,7 +194,8 @@ async def join_room(room_id: str, req: JoinRoomRequest):
         room = manager._get_room(room_id)
         if room["state"] != "lobby":
             raise HTTPException(status_code=400, detail="Game already in progress")
-        raise HTTPException(status_code=400, detail="Room is full (max 20 players)")
+        max_p = room.get("settings", {}).get("max_players", 20)
+        raise HTTPException(status_code=400, detail=f"Room is full (max {max_p} players)")
     manager.reset_idle_timer(room_id)
     schedule_idle_timer(room_id)
     return {"player_id": player_id}

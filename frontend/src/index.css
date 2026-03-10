@@ -52,7 +52,7 @@ body {
 .page {
   min-height: 100vh;
   padding: 24px 20px 56px;
-  max-width: 520px;
+  max-width: 720px;
   margin: 0 auto;
 }
 
@@ -199,9 +199,15 @@ body {
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 99px;
-  margin-left: 6px;
+  margin-left: 4px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge-group .badge {
+  margin-left: 0;
 }
 
 .badge-you { background: var(--primary-light); color: #a78bfa; }
@@ -211,6 +217,14 @@ body {
 .badge-skip { background: #1e293b; color: #94a3b8; }
 .badge-voted { background: var(--success-light); color: #4ade80; }
 .badge-disconnected { background: #6b7280; color: #fff; }
+
+.badge-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  flex-shrink: 1;
+  min-width: 0;
+}
 
 /* =====================
    Home Page
@@ -224,6 +238,7 @@ body {
   font-size: 56px;
   line-height: 1;
   margin-bottom: 8px;
+  color: var(--primary);
 }
 
 .title {
@@ -462,6 +477,39 @@ body {
   border-radius: 99px;
 }
 
+/* Lobby Two-Column Layout */
+.lobby-two-col {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.lobby-col-card {
+  min-width: 0;
+}
+
+.lobby-scroll-area {
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.lobby-scroll-area::-webkit-scrollbar { width: 4px; }
+.lobby-scroll-area::-webkit-scrollbar-track { background: transparent; }
+.lobby-scroll-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+@media (max-width: 600px) {
+  .lobby-two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .lobby-scroll-area {
+    max-height: 260px;
+  }
+}
+
 /* =====================
    Game Page
    ===================== */
@@ -481,8 +529,10 @@ body {
 }
 
 .imposter-icon {
-  font-size: 44px;
   margin-bottom: 8px;
+  display: flex;
+  justify-content: center;
+  color: #f87171;
 }
 
 .imposter-reveal h2 {
@@ -644,7 +694,10 @@ body {
 .clue-player-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1;
 }
 
 .clue-order-num {
@@ -666,6 +719,7 @@ body {
   font-size: 13px;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .clue-word {
@@ -891,7 +945,11 @@ body {
   border: 1px solid var(--danger);
 }
 
-.outcome-icon { font-size: 44px; margin-bottom: 8px; }
+.outcome-icon { margin-bottom: 8px; display: flex; justify-content: center; }
+
+.outcome-caught .outcome-icon { color: #4ade80; }
+.outcome-escaped .outcome-icon { color: #f87171; }
+.outcome-tie .outcome-icon { color: #fbbf24; }
 
 .outcome-caught h1 {
   font-family: "Space Grotesk", "Inter", sans-serif;
@@ -1023,6 +1081,7 @@ body {
 .result-clue-row {
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
 }
 
 .imposter-row {
@@ -1033,7 +1092,25 @@ body {
 .result-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.voted-for-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: var(--primary-light);
+  color: #a78bfa;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+.voted-for-tag.voted-skip {
+  background: #1e293b;
+  color: #94a3b8;
 }
 
 .vote-tally {
@@ -1111,7 +1188,6 @@ body {
    Settings Card (Lobby Page)
    ===================== */
 .settings-card {
-  width: 100%;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1182,6 +1258,61 @@ body {
   flex-wrap: wrap;
 }
 
+.setting-slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 20px;
+  text-align: center;
+}
+
+.slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid #fff;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid #fff;
+  cursor: pointer;
+}
+
 .host-controls-card {
   width: 100%;
   background: var(--bg-card);
@@ -1220,6 +1351,63 @@ body {
 }
 
 /* =====================
+   Voting Role Banner
+   ===================== */
+.voting-role-banner {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.voting-role-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.voting-role-info.imposter {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.voting-role-info.innocent {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.voting-role-label {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.voting-role-info.imposter .voting-role-label {
+  color: #ef4444;
+}
+
+.voting-role-info.innocent .voting-role-label {
+  color: #10b981;
+}
+
+.voting-role-word {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.discreet-card.compact {
+  padding: 8px 16px;
+  text-align: center;
+}
+
+.discreet-card.compact .reveal-hold-btn {
+  font-size: 13px;
+  padding: 6px 14px;
+}
+
+/* =====================
    Kick Button
    ===================== */
 .kick-btn {
@@ -1246,6 +1434,18 @@ body {
 /* =====================
    Leave Room Button
    ===================== */
+.top-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.top-actions .leave-btn {
+  margin-bottom: 0;
+}
+
 .leave-btn {
   display: block;
   margin-left: auto;
@@ -1262,6 +1462,38 @@ body {
 .leave-btn:hover {
   border-color: #ef4444;
   color: #ef4444;
+}
+
+.discreet-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.discreet-toggle:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.discreet-toggle.active {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: #a78bfa;
+}
+
+.discreet-toggle.lobby-discreet {
+  padding: 10px 20px;
+  font-size: 14px;
 }
 
 /* =====================
@@ -1331,3 +1563,42 @@ body {
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* =====================
+   Mobile Responsiveness
+   ===================== */
+@media (max-width: 480px) {
+  /* Typography scaling */
+  .title { font-size: 28px; }
+  .room-code { font-size: 32px; letter-spacing: 0.12em; }
+  .secret-word { font-size: 28px; }
+  .page-heading h1 { font-size: 24px; }
+  .outcome-caught h1,
+  .outcome-escaped h1,
+  .outcome-tie h1 { font-size: 22px; }
+  .create-confirm-info .player-name-display { font-size: 20px; }
+  .countdown-badge { font-size: 18px; }
+
+  /* Layout fixes */
+  .page { padding: 16px 12px 40px; }
+  .room-code-display { padding: 16px 20px; }
+  .vote-btn { padding: 10px; }
+  .clue-form { flex-direction: column; }
+  .clue-form .input-large { flex: unset; }
+  .imposter-reveal,
+  .word-reveal { padding: 16px; }
+  .card { padding: 16px; }
+  .settings-card { padding: 16px; }
+  .outcome-banner { padding: 20px; }
+  .create-confirm-card { padding: 20px 16px; }
+  .create-confirm-avatar {
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 360px) {
+  .vote-buttons { grid-template-columns: 1fr; }
+  .room-code { font-size: 28px; }
+}
