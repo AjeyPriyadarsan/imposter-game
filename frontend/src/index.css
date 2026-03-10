@@ -1219,6 +1219,61 @@ body {
   flex-wrap: wrap;
 }
 
+.setting-slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  min-width: 20px;
+  text-align: center;
+}
+
+.slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid #fff;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid #fff;
+  cursor: pointer;
+}
+
 .host-controls-card {
   width: 100%;
   background: var(--bg-card);
@@ -1257,6 +1312,63 @@ body {
 }
 
 /* =====================
+   Voting Role Banner
+   ===================== */
+.voting-role-banner {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.voting-role-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.voting-role-info.imposter {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.voting-role-info.innocent {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.voting-role-label {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.voting-role-info.imposter .voting-role-label {
+  color: #ef4444;
+}
+
+.voting-role-info.innocent .voting-role-label {
+  color: #10b981;
+}
+
+.voting-role-word {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.discreet-card.compact {
+  padding: 8px 16px;
+  text-align: center;
+}
+
+.discreet-card.compact .reveal-hold-btn {
+  font-size: 13px;
+  padding: 6px 14px;
+}
+
+/* =====================
    Kick Button
    ===================== */
 .kick-btn {
@@ -1283,6 +1395,18 @@ body {
 /* =====================
    Leave Room Button
    ===================== */
+.top-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.top-actions .leave-btn {
+  margin-bottom: 0;
+}
+
 .leave-btn {
   display: block;
   margin-left: auto;
@@ -1299,6 +1423,38 @@ body {
 .leave-btn:hover {
   border-color: #ef4444;
   color: #ef4444;
+}
+
+.discreet-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.discreet-toggle:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.discreet-toggle.active {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: #a78bfa;
+}
+
+.discreet-toggle.lobby-discreet {
+  padding: 10px 20px;
+  font-size: 14px;
 }
 
 /* =====================

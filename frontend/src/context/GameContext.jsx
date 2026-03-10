@@ -33,6 +33,7 @@ export function GameProvider({ children }) {
   const [error, setError] = useState(null);
   const [pendingRoomCode, setPendingRoomCode] = useState(null);
   const [reconnecting, setReconnecting] = useState(false);
+  const [localDiscreet, setLocalDiscreet] = useState(false);
   const wsRef = useRef(null);
 
   // Returns a Promise<boolean> — true if WS connected successfully, false if rejected
@@ -41,6 +42,7 @@ export function GameProvider({ children }) {
       let resolved = false;
       let opened = false;
       let kicked = false;
+      let roomClosed = false;
       const ws = new WebSocket(`${WS_URL}/ws/${roomId}/${playerId}`);
 
       ws.onmessage = (event) => {
@@ -60,6 +62,7 @@ export function GameProvider({ children }) {
           setError("You were kicked by the host.");
           setTimeout(() => setError(null), 3000);
         } else if (msg.type === "room_closed") {
+          roomClosed = true;
           clearSession(roomId);
           setPlayerInfo(null);
           setGameState(null);
@@ -77,7 +80,7 @@ export function GameProvider({ children }) {
 
       ws.onclose = (e) => {
         if (!resolved) { resolved = true; resolve(false); }
-        else if (opened && !kicked) {
+        else if (opened && !kicked && !roomClosed) {
           if (e.code === 4008) {
             clearSession(roomId);
             setPlayerInfo(null);
@@ -119,6 +122,7 @@ export function GameProvider({ children }) {
       } else {
         clearSession(roomCode);
         setPendingRoomCode(roomCode);
+        history.pushState(null, "", "/");
       }
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -212,7 +216,7 @@ export function GameProvider({ children }) {
 
   return (
     <GameContext.Provider
-      value={{ playerInfo, gameState, error, createRoom, joinRoom, sendMessage, updateSettings, leaveRoom, pendingRoomCode, reconnecting }}
+      value={{ playerInfo, gameState, error, createRoom, joinRoom, sendMessage, updateSettings, leaveRoom, pendingRoomCode, reconnecting, localDiscreet, setLocalDiscreet }}
     >
       {children}
     </GameContext.Provider>

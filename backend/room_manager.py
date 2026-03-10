@@ -67,6 +67,7 @@ class RoomManager:
                 "num_rounds": 1,
                 "discreet_mode": False,
                 "word_similarity": "similar",
+                "max_players": 10,
             },
             "idle_expires_at": time.time() + 600,
         }
@@ -98,7 +99,7 @@ class RoomManager:
 
         valid_thinking = [10, 20, 30, 40, 50, 60]
         valid_voting = [30, 45, 60, 90, 120]
-        valid_rounds = [1, 2, 3]
+        valid_rounds = [1, 2, 3, 4, 5, 6]
 
         current = room.get("settings", {
             "num_imposters": 1, "thinking_time": 30,
@@ -130,6 +131,11 @@ class RoomManager:
         if current["num_rounds"] < current["num_imposters"]:
             current["num_rounds"] = current["num_imposters"]
 
+        if "max_players" in settings:
+            val = settings["max_players"]
+            if isinstance(val, int) and 3 <= val <= 20 and val >= len(room["players"]):
+                current["max_players"] = val
+
         if "discreet_mode" in settings:
             if isinstance(settings["discreet_mode"], bool):
                 current["discreet_mode"] = settings["discreet_mode"]
@@ -148,7 +154,8 @@ class RoomManager:
             return None
         if room["state"] != "lobby":
             return None
-        if len(room["players"]) >= 20:
+        max_players = room.get("settings", {}).get("max_players", 20)
+        if len(room["players"]) >= max_players:
             return None
         player_id = self._generate_player_id()
         room["players"][player_id] = {
@@ -625,6 +632,7 @@ class RoomManager:
             "num_imposters": 1, "thinking_time": 30,
             "voting_time": 60, "num_rounds": 1,
             "discreet_mode": False, "word_similarity": "similar",
+            "max_players": 10,
         }
 
         return {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { UserX } from "lucide-react";
+import { UserX, Eye, EyeOff, ShieldAlert, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useGame } from "../context/GameContext";
 import ConfirmModal from "../components/ConfirmModal";
 
@@ -37,12 +37,15 @@ function useCountdown(startTime, duration, serverTime) {
 }
 
 export default function VotingPage() {
-  const { gameState, playerInfo, sendMessage, leaveRoom } = useGame();
+  const { gameState, playerInfo, sendMessage, leaveRoom, localDiscreet, setLocalDiscreet } = useGame();
   const isHost = gameState?.host === playerInfo?.id;
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [kickTarget, setKickTarget] = useState(null);
+  const [revealing, setRevealing] = useState(false);
 
   if (!gameState) return <div className="page center"><p>Loading...</p></div>;
+
+  const isDiscreet = gameState.settings?.discreet_mode || localDiscreet;
 
   const votingTime = gameState.settings?.voting_time || 60;
   const remaining = useCountdown(
@@ -77,7 +80,45 @@ export default function VotingPage() {
 
   return (
     <div className="page center">
-      <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
+      <div className="top-actions">
+        <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
+        {!gameState.settings?.discreet_mode && (
+          <button
+            className={`discreet-toggle${localDiscreet ? " active" : ""}`}
+            onClick={() => setLocalDiscreet((d) => !d)}
+          >
+            {localDiscreet ? <EyeOff size={14} /> : <Eye size={14} />}
+            Discreet
+          </button>
+        )}
+      </div>
+
+      <div
+        className="voting-role-banner"
+        onPointerDown={() => isDiscreet && setRevealing(true)}
+        onPointerUp={() => setRevealing(false)}
+        onPointerLeave={() => setRevealing(false)}
+        style={isDiscreet ? { userSelect: "none", touchAction: "none" } : undefined}
+      >
+        {isDiscreet && !revealing ? (
+          <div className="discreet-card compact">
+            <button className="btn reveal-hold-btn" tabIndex={-1}>
+              <Eye size={16} /> Hold to reveal your word
+            </button>
+          </div>
+        ) : gameState.is_imposter ? (
+          <div className="voting-role-info imposter">
+            <span className="voting-role-label"><ShieldAlert size={16} style={{ marginRight: 4, verticalAlign: "middle" }} /> Imposter</span>
+            <span className="voting-role-word">{gameState.word || "???"}</span>
+          </div>
+        ) : (
+          <div className="voting-role-info innocent">
+            <span className="voting-role-label"><ShieldCheck size={16} style={{ marginRight: 4, verticalAlign: "middle" }} /> Innocent</span>
+            <span className="voting-role-word">{gameState.word}</span>
+          </div>
+        )}
+      </div>
+
       <div className="page-heading">
         <h1>Vote</h1>
         <p>Who do you think is the imposter?</p>
@@ -154,7 +195,11 @@ export default function VotingPage() {
         </div>
       ) : hasVoted ? (
         <div className="voted-message">
-          <p>Vote cast! Waiting for others...</p>
+          {me.vote === "skip" ? (
+            <p>You skipped your vote. Waiting for others...</p>
+          ) : (
+            <p>You voted for <strong>{gameState.players.find((p) => p.id === me.vote)?.name || "Unknown"}</strong>. Waiting for others...</p>
+          )}
         </div>
       ) : (
         <div className="vote-grid">
