@@ -176,6 +176,21 @@ body {
   color: #fca5a5;
 }
 
+.idle-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 440px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-light);
+  border: 1px solid var(--warning);
+  color: #fbbf24;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 /* =====================
    Badges
    ===================== */
@@ -193,6 +208,9 @@ body {
 .badge-host { background: var(--warning-light); color: #fbbf24; }
 .badge-imposter { background: var(--danger-light); color: #f87171; }
 .badge-revealed { background: #fef3c7; color: #d97706; }
+.badge-skip { background: #1e293b; color: #94a3b8; }
+.badge-voted { background: var(--success-light); color: #4ade80; }
+.badge-disconnected { background: #6b7280; color: #fff; }
 
 /* =====================
    Home Page
@@ -511,6 +529,47 @@ body {
   color: var(--text-muted);
 }
 
+/* Discreet Mode */
+.discreet-card {
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.discreet-label {
+  font-size: 14px;
+  color: var(--text-dim);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.reveal-hold-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.reveal-hold-btn:active {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
 .game-content {
   max-width: 520px;
   margin: 0 auto;
@@ -789,6 +848,26 @@ body {
 
 .vote-player-name { font-weight: 700; font-size: 13px; }
 .vote-self-hint { font-size: 10px; color: var(--text-muted); }
+
+.skip-vote-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.skip-vote-btn:hover {
+  border-color: #94a3b8;
+  color: var(--text);
+}
 
 /* =====================
    Results Page
@@ -1112,6 +1191,138 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* =====================
+   Role Badge Bar
+   ===================== */
+.role-badge-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  text-align: center;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.role-innocent {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.role-imposter {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* =====================
+   Kick Button
+   ===================== */
+.kick-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  opacity: 0.4;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.kick-btn:hover {
+  color: #ef4444;
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* =====================
+   Leave Room Button
+   ===================== */
+.leave-btn {
+  display: block;
+  margin-left: auto;
+  margin-bottom: 8px;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.leave-btn:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* =====================
+   Confirm Modal
+   ===================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modal-message {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
 }
 
 /* =====================

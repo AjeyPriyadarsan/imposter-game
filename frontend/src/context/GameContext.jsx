@@ -49,6 +49,14 @@ export function GameProvider({ children }) {
         } else if (msg.type === "error") {
           setError(msg.payload.message);
           setTimeout(() => setError(null), 3000);
+        } else if (msg.type === "room_closed") {
+          clearSession(roomId);
+          setPlayerInfo(null);
+          setGameState(null);
+          setPendingRoomCode(null);
+          history.pushState(null, "", "/");
+          setError(msg.payload.message || "Room closed due to inactivity");
+          setTimeout(() => setError(null), 5000);
         }
       };
 
@@ -57,9 +65,21 @@ export function GameProvider({ children }) {
         if (!resolved) { resolved = true; resolve(true); }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (e) => {
         if (!resolved) { resolved = true; resolve(false); }
-        else if (opened) setError("Connection lost. Please refresh.");
+        else if (opened) {
+          if (e.code === 4008) {
+            clearSession(roomId);
+            setPlayerInfo(null);
+            setGameState(null);
+            setPendingRoomCode(null);
+            history.pushState(null, "", "/");
+            setError("You were kicked by the host.");
+            setTimeout(() => setError(null), 3000);
+          } else {
+            setError("Connection lost. Please refresh.");
+          }
+        }
       };
 
       ws.onerror = () => {
@@ -96,6 +116,7 @@ export function GameProvider({ children }) {
   const createRoom = useCallback(
     async (name) => {
       try {
+        setError(null);
         const res = await fetch(`${API_URL}/rooms`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -124,6 +145,7 @@ export function GameProvider({ children }) {
   const joinRoom = useCallback(
     async (roomId, name) => {
       try {
+        setError(null);
         const code = roomId.trim().toUpperCase();
         const res = await fetch(`${API_URL}/rooms/${code}/join`, {
           method: "POST",
@@ -154,9 +176,21 @@ export function GameProvider({ children }) {
     }
   }, []);
 
+  const leaveRoom = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    if (playerInfo?.roomId) clearSession(playerInfo.roomId);
+    setPlayerInfo(null);
+    setGameState(null);
+    setPendingRoomCode(null);
+    window.location.href = "/";
+  }, [playerInfo]);
+
   return (
     <GameContext.Provider
-      value={{ playerInfo, gameState, error, createRoom, joinRoom, sendMessage, pendingRoomCode, reconnecting }}
+      value={{ playerInfo, gameState, error, createRoom, joinRoom, sendMessage, leaveRoom, pendingRoomCode, reconnecting }}
     >
       {children}
     </GameContext.Provider>
