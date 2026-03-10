@@ -1,11 +1,52 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useGame } from "../context/GameContext";
+
+function useCountdown(startTime, duration, serverTime) {
+  const [remaining, setRemaining] = useState(null);
+  const offsetRef = useRef(0);
+
+  useEffect(() => {
+    if (!startTime || !duration || !serverTime) {
+      setRemaining(null);
+      return;
+    }
+    // Calculate clock offset between server and client
+    offsetRef.current = serverTime - Date.now() / 1000;
+  }, [serverTime, startTime, duration]);
+
+  useEffect(() => {
+    if (!startTime || !duration) {
+      setRemaining(null);
+      return;
+    }
+
+    function tick() {
+      const now = Date.now() / 1000 + offsetRef.current;
+      const elapsed = now - startTime;
+      const left = Math.max(0, Math.ceil(duration - elapsed));
+      setRemaining(left);
+    }
+
+    tick();
+    const id = setInterval(tick, 250);
+    return () => clearInterval(id);
+  }, [startTime, duration]);
+
+  return remaining;
+}
 
 export default function GamePage() {
   const { gameState, playerInfo, sendMessage, error } = useGame();
   const [clue, setClue] = useState("");
 
   if (!gameState) return <div className="page center"><p>Loading...</p></div>;
+
+  const thinkingTime = gameState.settings?.thinking_time || 30;
+  const remaining = useCountdown(
+    gameState.turn_start_time,
+    thinkingTime,
+    gameState.server_time
+  );
 
   const isMyTurn = gameState.current_player_id === playerInfo.id;
   const currentPlayer = gameState.players.find(
@@ -61,6 +102,11 @@ export default function GamePage() {
               Waiting for <strong>{currentPlayer?.name}</strong> to give a clue...
             </div>
           )}
+          {remaining !== null && (
+            <div className={`countdown-badge${remaining <= 5 ? " countdown-urgent" : ""}`}>
+              {remaining}s
+            </div>
+          )}
         </div>
 
         {isMyTurn && (
@@ -99,7 +145,9 @@ export default function GamePage() {
                   </span>
                 </div>
                 <div className="clue-value">
-                  {player.clue ? (
+                  {player.clue === "__word_revealed__" ? (
+                    <span className="clue-revealed">⚠️ Typed the word!</span>
+                  ) : player.clue ? (
                     <span className="clue-word">{player.clue}</span>
                   ) : player.id === gameState.current_player_id ? (
                     <span className="clue-thinking">thinking...</span>

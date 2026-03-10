@@ -1,4 +1,5 @@
 import os
+import asyncio
 import redis
 from dotenv import load_dotenv
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
@@ -22,6 +23,56 @@ app.add_middleware(
 redis_url = os.environ.get("REDIS_URL", "redis://localhost:6380")
 redis_client = redis.from_url(redis_url, decode_responses=True)
 manager = RoomManager(redis_client=redis_client)
+
+# Timer management: room_id -> asyncio.Task
+_timers: dict[str, asyncio.Task] = {}
+
+
+def cancel_timer(room_id: str):
+    task = _timers.pop(room_id, None)
+    if task and not task.done():
+        task.cancel()
+
+
+async def _thinking_timer(room_id: str, seconds: int, expected_turn: int):
+    """Auto-skip current player's turn after thinking_time expires."""
+    await asyncio.sleep(seconds)
+    room = manager._get_room(room_id)
+    if not room or room["state"] != "playing":
+        return
+    if room["current_turn"] != expected_turn:
+        return  # Turn already advanced
+    if manager.skip_turn(room_id):
+        manager.auto_advance_turn(room_id)
+        await manager.broadcast(room_id)
+        # Schedule next timer
+        schedule_turn_timer(room_id)
+
+
+async def _voting_timer(room_id: str, seconds: int):
+    """Auto-end voting after voting_time expires."""
+    await asyncio.sleep(seconds)
+    if manager.force_end_voting(room_id):
+        await manager.broadcast(room_id)
+    _timers.pop(room_id, None)
+
+
+def schedule_turn_timer(room_id: str):
+    """Schedule a thinking timer for the current turn."""
+    cancel_timer(room_id)
+    room = manager._get_room(room_id)
+    if not room:
+        return
+    if room["state"] == "playing" and room["current_turn"] < len(room["clue_order"]):
+        seconds = room.get("settings", {}).get("thinking_time", 30)
+        _timers[room_id] = asyncio.create_task(
+            _thinking_timer(room_id, seconds, room["current_turn"])
+        )
+    elif room["state"] == "voting":
+        seconds = room.get("settings", {}).get("voting_time", 60)
+        _timers[room_id] = asyncio.create_task(
+            _voting_timer(room_id, seconds)
+        )
 
 
 class CreateRoomRequest(BaseModel):
@@ -86,6 +137,18 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                     else:
                         manager.start_game(room_id)
                         await manager.broadcast(room_id)
+                        schedule_turn_timer(room_id)
+
+            elif msg_type == "update_settings":
+                settings = data.get("settings", {})
+                success, error_msg = manager.update_settings(room_id, player_id, settings)
+                if success:
+                    await manager.broadcast(room_id)
+                elif error_msg:
+                    await websocket.send_json({
+                        "type": "error",
+                        "payload": {"message": error_msg}
+                    })
 
             elif msg_type == "submit_clue":
                 clue = data.get("clue", "").strip()
@@ -101,16 +164,29 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                 if manager.submit_clue(room_id, player_id, clue):
                     manager.auto_advance_turn(room_id)
                     await manager.broadcast(room_id)
+                    schedule_turn_timer(room_id)
 
             elif msg_type == "submit_vote":
                 voted_id = data.get("voted_id")
                 if voted_id:
                     if manager.submit_vote(room_id, player_id, voted_id):
+                        room = manager._get_room(room_id)
+                        if room and room["state"] in ("results", "round_end"):
+                            cancel_timer(room_id)
                         await manager.broadcast(room_id)
+
+            elif msg_type == "next_round":
+                room = manager._get_room(room_id)
+                if room and room["host"] == player_id and room["state"] == "round_end":
+                    cancel_timer(room_id)
+                    if manager.next_round(room_id):
+                        await manager.broadcast(room_id)
+                        schedule_turn_timer(room_id)
 
             elif msg_type == "play_again":
                 room = manager._get_room(room_id)
                 if room and room["host"] == player_id:
+                    cancel_timer(room_id)
                     manager.play_again(room_id)
                     await manager.broadcast(room_id)
 
@@ -132,6 +208,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
             if not room["players"]:
                 manager._delete_room(room_id)
             else:
+                # Auto-clamp imposters if player count dropped
+                settings = room.get("settings")
+                if settings:
+                    max_imp = manager.get_max_imposters(len(room["players"]))
+                    if settings["num_imposters"] > max_imp:
+                        settings["num_imposters"] = max_imp
                 manager._save_room(room)
                 await manager.broadcast(room_id)
         else:
@@ -139,7 +221,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
             manager.set_player_connected(room_id, player_id, False)
             room = manager._get_room(room_id)
             if room["state"] == "playing":
-                manager.auto_advance_turn(room_id)
+                if manager.auto_advance_turn(room_id):
+                    schedule_turn_timer(room_id)
             elif room["state"] == "voting":
-                manager.check_voting_complete(room_id)
+                if manager.check_voting_complete(room_id):
+                    cancel_timer(room_id)
+            elif room["state"] == "round_end":
+                pass  # Nothing to do on disconnect during round_end
             await manager.broadcast(room_id)
