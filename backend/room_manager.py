@@ -4,7 +4,7 @@ import string
 import time
 from typing import Dict, Optional
 from fastapi import WebSocket
-from word_list import WORDS, WORD_PAIRS
+from word_list import WORDS, WORD_PAIRS_BY_LEVEL
 
 
 class RoomManager:
@@ -65,7 +65,10 @@ class RoomManager:
                 "thinking_time": 30,
                 "voting_time": 60,
                 "num_rounds": 1,
+                "discreet_mode": False,
+                "word_similarity": "similar",
             },
+            "idle_expires_at": time.time() + 600,
         }
         self._save_room(room)
         self.connections[room_id] = {}
@@ -73,7 +76,16 @@ class RoomManager:
 
     @staticmethod
     def get_max_imposters(player_count: int) -> int:
-        return min(3, max(1, (player_count - 1) // 2))
+        # ~1 imposter per 3 players: 3-5→1, 6-8→2, 9-11→3, 12-14→4, 15-17→5, 18-20→6
+        return max(1, player_count // 3)
+
+    def reset_idle_timer(self, room_id: str, seconds: int = 600) -> bool:
+        room = self._get_room(room_id)
+        if not room or room["state"] != "lobby":
+            return False
+        room["idle_expires_at"] = time.time() + seconds
+        self._save_room(room)
+        return True
 
     def update_settings(self, room_id: str, player_id: str, settings: dict) -> tuple[bool, str]:
         room = self._get_room(room_id)
@@ -95,9 +107,9 @@ class RoomManager:
 
         if "num_imposters" in settings:
             val = settings["num_imposters"]
-            if isinstance(val, int) and 1 <= val <= 3:
-                max_imp = self.get_max_imposters(len(room["players"]))
-                current["num_imposters"] = min(val, max_imp)
+            max_imp = self.get_max_imposters(len(room["players"]))
+            if isinstance(val, int) and 1 <= val <= max_imp:
+                current["num_imposters"] = val
 
         if "thinking_time" in settings:
             val = settings["thinking_time"]
@@ -114,6 +126,18 @@ class RoomManager:
             if val in valid_rounds:
                 current["num_rounds"] = val
 
+        # Enforce num_rounds >= num_imposters so innocents always have a chance
+        if current["num_rounds"] < current["num_imposters"]:
+            current["num_rounds"] = current["num_imposters"]
+
+        if "discreet_mode" in settings:
+            if isinstance(settings["discreet_mode"], bool):
+                current["discreet_mode"] = settings["discreet_mode"]
+
+        if "word_similarity" in settings:
+            if settings["word_similarity"] in ("similar", "somewhat", "random"):
+                current["word_similarity"] = settings["word_similarity"]
+
         room["settings"] = current
         self._save_room(room)
         return True, ""
@@ -124,7 +148,7 @@ class RoomManager:
             return None
         if room["state"] != "lobby":
             return None
-        if len(room["players"]) >= 8:
+        if len(room["players"]) >= 20:
             return None
         player_id = self._generate_player_id()
         room["players"][player_id] = {
@@ -209,8 +233,10 @@ class RoomManager:
         random.shuffle(clue_order)
 
         word = random.choice(WORDS)
+        similarity = settings.get("word_similarity", "similar")
+        pairs = WORD_PAIRS_BY_LEVEL.get(similarity, WORD_PAIRS_BY_LEVEL["similar"])
         room["word"] = word
-        room["imposter_word"] = WORD_PAIRS.get(word, word)
+        room["imposter_word"] = pairs.get(word, word)
         room["imposters"] = imposters
         room["clue_order"] = clue_order
         room["current_turn"] = 0
@@ -221,6 +247,7 @@ class RoomManager:
         room["last_most_voted_ids"] = []
         room["last_eliminated_id"] = None
         room["state"] = "playing"
+        room["idle_expires_at"] = None
         room["turn_start_time"] = time.time()
         for p in room["players"].values():
             p["clue"] = None
@@ -246,8 +273,12 @@ class RoomManager:
         if player_id in room["imposters"] and normalized == room["word"].lower():
             room["players"][player_id]["clue"] = normalized
             room["outcome"] = "imposter_guessed"
+            room["win_reason"] = (
+                f"The imposter correctly guessed the innocents' word '{room['word']}'!"
+            )
             room["current_turn"] += 1
             room["state"] = "results"
+            room["phase_start_time"] = time.time()
             self._save_room(room)
             return True
 
@@ -304,55 +335,121 @@ class RoomManager:
         self._resolve_voting(room)
         return True
 
+    def _imposter_wins_by_parity(self, room: dict) -> bool:
+        """Returns True if active imposters >= active innocents."""
+        players = room["players"]
+        imposters = set(room["imposters"])
+        active = [p for p in players.values() if not p.get("eliminated") and not p.get("revealed")]
+        active_imposters = sum(1 for p in active if p["id"] in imposters)
+        active_innocents = len(active) - active_imposters
+        return active_imposters >= active_innocents
+
+    def _check_imposter_win_condition(self, room: dict) -> Optional[str]:
+        """Returns a win-reason string if imposters win right now, else None."""
+        players = room["players"]
+        imposters = set(room["imposters"])
+        active = [p for p in players.values() if not p.get("eliminated") and not p.get("revealed")]
+        active_imposters = sum(1 for p in active if p["id"] in imposters)
+        active_innocents = len(active) - active_imposters
+
+        # Parity: imposters outnumber or match innocents
+        if active_imposters >= active_innocents:
+            return (
+                f"Imposters ({active_imposters}) now outnumber the remaining "
+                f"innocents ({active_innocents})"
+            )
+
+        # Rounds remaining: fewer rounds left than active imposters
+        remaining_rounds = room.get("total_rounds", 1) - room.get("current_round", 1)
+        if remaining_rounds < active_imposters:
+            if remaining_rounds == 0:
+                total = room.get("total_rounds", 1)
+                return (
+                    f"Imposters survived all {total} "
+                    f"round{'s' if total != 1 else ''}!"
+                )
+            return (
+                f"Only {remaining_rounds} round{'s' if remaining_rounds != 1 else ''} "
+                f"left but {active_imposters} imposter{'s' if active_imposters != 1 else ''} "
+                f"remain — innocents can't catch them all!"
+            )
+
+        return None
+
     def _resolve_voting(self, room: dict):
         """Resolve voting: eliminate a player or end the game. Saves room state."""
-        # Count votes from active (non-eliminated, non-revealed) players only
+        players = room["players"]
+
+        # Eligible: connected, not eliminated, not revealed
+        eligible = [
+            p for p in players.values()
+            if p.get("connected", True)
+            and not p.get("eliminated")
+            and not p.get("revealed")
+        ]
+
+        # Skip count = explicit "skip" votes + players who never voted (None)
+        skip_count = sum(1 for p in eligible if p["vote"] is None or p["vote"] == "skip")
+
+        # Real votes per player (exclude skip / None)
         vote_counts: Dict[str, int] = {}
-        for player in room["players"].values():
-            if player.get("eliminated") or player.get("revealed"):
-                continue
-            if player["vote"]:
+        for player in eligible:
+            if player["vote"] and player["vote"] != "skip":
                 vid = player["vote"]
                 vote_counts[vid] = vote_counts.get(vid, 0) + 1
 
-        if vote_counts:
-            max_votes = max(vote_counts.values())
-            most_voted_ids = [pid for pid, c in vote_counts.items() if c == max_votes]
+        # Skip wins when skip_count >= any individual vote count
+        max_real_votes = max(vote_counts.values()) if vote_counts else 0
+        skip_won = skip_count >= max_real_votes if max_real_votes > 0 else True
+
+        if vote_counts and not skip_won:
+            most_voted_ids = [pid for pid, c in vote_counts.items() if c == max_real_votes]
         else:
             most_voted_ids = []
 
         room["last_vote_counts"] = vote_counts
         room["last_most_voted_ids"] = most_voted_ids
-
-        is_final_round = room.get("current_round", 1) >= room.get("total_rounds", 1)
+        room["last_skip_count"] = skip_count
+        room["last_skip_won"] = skip_won
 
         if len(most_voted_ids) == 1:
-            # Clear plurality — eliminate this player
+            # Clear plurality and skip did not win — eliminate this player
             eliminated_id = most_voted_ids[0]
             room["players"][eliminated_id]["eliminated"] = True
             room["last_eliminated_id"] = eliminated_id
 
             if eliminated_id in room["imposters"]:
-                # Imposter caught — innocents win!
+                elim_name = room["players"][eliminated_id]["name"]
                 room["outcome"] = "innocents_win"
+                room["win_reason"] = f"{elim_name} was voted out and was the imposter!"
                 room["state"] = "results"
-            elif is_final_round:
-                # Wrong person eliminated on final round — imposter wins
-                room["outcome"] = "imposter_wins"
-                room["state"] = "results"
+                room["phase_start_time"] = time.time()
             else:
-                # Innocent eliminated, more rounds remain — continue
-                room["outcome"] = None
-                room["state"] = "round_end"
+                win_reason = self._check_imposter_win_condition(room)
+                if win_reason:
+                    room["outcome"] = "imposter_wins"
+                    room["win_reason"] = win_reason
+                    room["state"] = "results"
+                    room["phase_start_time"] = time.time()
+                else:
+                    room["outcome"] = None
+                    room["win_reason"] = None
+                    room["state"] = "round_end"
+                    room["phase_start_time"] = time.time()
         else:
-            # Tie (or no votes) — no elimination
+            # Tie, skip won, or no real votes — no elimination
             room["last_eliminated_id"] = None
-            if is_final_round:
+            win_reason = self._check_imposter_win_condition(room)
+            if win_reason:
                 room["outcome"] = "imposter_wins"
+                room["win_reason"] = win_reason
                 room["state"] = "results"
+                room["phase_start_time"] = time.time()
             else:
                 room["outcome"] = None
+                room["win_reason"] = None
                 room["state"] = "round_end"
+                room["phase_start_time"] = time.time()
 
         self._save_room(room)
 
@@ -360,12 +457,14 @@ class RoomManager:
         room = self._get_room(room_id)
         if not room or room["state"] != "voting":
             return False
-        if voted_id not in room["players"]:
-            return False
-        # Cannot vote for eliminated or revealed players
-        target = room["players"].get(voted_id, {})
-        if target.get("eliminated", False) or target.get("revealed", False):
-            return False
+        # "skip" is a valid special vote — skip target validation
+        if voted_id != "skip":
+            if voted_id not in room["players"]:
+                return False
+            # Cannot vote for eliminated or revealed players
+            target = room["players"].get(voted_id, {})
+            if target.get("eliminated", False) or target.get("revealed", False):
+                return False
         # Eliminated/revealed players cannot vote
         voter = room["players"].get(voter_id, {})
         if voter.get("revealed", False) or voter.get("eliminated", False):
@@ -401,6 +500,7 @@ class RoomManager:
         room["last_vote_counts"] = {}
         room["last_most_voted_ids"] = []
         room["last_eliminated_id"] = None
+        room["idle_expires_at"] = time.time() + 600
         for p in room["players"].values():
             p["clue"] = None
             p["vote"] = None
@@ -439,6 +539,8 @@ class RoomManager:
             "imposter_names": [room["players"][pid]["name"] for pid in room["imposters"] if pid in room["players"]],
             "word": room["word"],
             "imposter_word": room.get("imposter_word"),
+            "win_reason": room.get("win_reason", ""),
+            "skip_count": room.get("last_skip_count", 0),
         }
 
         if room.get("outcome") == "imposter_guessed":
@@ -460,6 +562,7 @@ class RoomManager:
             "vote_counts": {pid: vote_counts.get(pid, 0) for pid in room["players"]},
             "most_voted_ids": most_voted_ids,
             "eliminated_id": eliminated_id,
+            "skip_won": room.get("last_skip_won", False),
         }
 
     def get_room_state(self, room_id: str, player_id: str) -> Optional[dict]:
@@ -473,7 +576,12 @@ class RoomManager:
                 "id": pid,
                 "name": player["name"],
                 "clue": player["clue"],
-                "vote": player["vote"] if room["state"] in ("results", "round_end") or pid == player_id else None,
+                "vote": (
+                    player["vote"] if room["state"] in ("results", "round_end") or pid == player_id
+                    else "skip" if player["vote"] == "skip"
+                    else "voted" if player["vote"] is not None
+                    else None
+                ),
                 "is_host": pid == room["host"],
                 "connected": player.get("connected", True),
                 "revealed": player.get("revealed", False),
@@ -492,12 +600,15 @@ class RoomManager:
         if room["state"] == "round_end":
             elim_id = room.get("last_eliminated_id")
             elim_name = room["players"][elim_id]["name"] if elim_id and elim_id in room["players"] else None
+            skip_won = room.get("last_skip_won", False)
             round_end_info = {
                 "eliminated_id": elim_id,
                 "eliminated_name": elim_name,
                 "vote_counts": room.get("last_vote_counts", {}),
                 "most_voted_ids": room.get("last_most_voted_ids", []),
-                "was_tie": elim_id is None,
+                "was_tie": elim_id is None and not skip_won,
+                "skip_won": skip_won,
+                "skip_count": room.get("last_skip_count", 0),
             }
 
         is_imposter = player_id in room["imposters"]
@@ -512,6 +623,7 @@ class RoomManager:
         default_settings = {
             "num_imposters": 1, "thinking_time": 30,
             "voting_time": 60, "num_rounds": 1,
+            "discreet_mode": False, "word_similarity": "similar",
         }
 
         return {
@@ -533,6 +645,7 @@ class RoomManager:
             "server_time": time.time(),
             "current_round": room.get("current_round", 1),
             "total_rounds": room.get("total_rounds", 1),
+            "idle_expires_at": room.get("idle_expires_at") if room["state"] == "lobby" else None,
         }
 
     async def connect(self, room_id: str, player_id: str, websocket: WebSocket):

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { UserX } from "lucide-react";
 import { useGame } from "../context/GameContext";
+import ConfirmModal from "../components/ConfirmModal";
 
 function useCountdown(startTime, duration, serverTime) {
   const [remaining, setRemaining] = useState(null);
@@ -35,7 +37,10 @@ function useCountdown(startTime, duration, serverTime) {
 }
 
 export default function VotingPage() {
-  const { gameState, playerInfo, sendMessage } = useGame();
+  const { gameState, playerInfo, sendMessage, leaveRoom } = useGame();
+  const isHost = gameState?.host === playerInfo?.id;
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [kickTarget, setKickTarget] = useState(null);
 
   if (!gameState) return <div className="page center"><p>Loading...</p></div>;
 
@@ -61,12 +66,18 @@ export default function VotingPage() {
     sendMessage({ type: "submit_vote", voted_id: targetId });
   }
 
+  function handleSkip() {
+    if (isBanned || hasVoted) return;
+    sendMessage({ type: "submit_vote", voted_id: "skip" });
+  }
+
   const orderedPlayers = gameState.clue_order
     .map((id) => gameState.players.find((p) => p.id === id))
     .filter(Boolean);
 
   return (
     <div className="page center">
+      <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
       <div className="page-heading">
         <h1>Vote</h1>
         <p>Who do you think is the imposter?</p>
@@ -90,11 +101,41 @@ export default function VotingPage() {
       <div className="clues-review card" style={{ width: "100%" }}>
         <h3>Clues from this round</h3>
         <div className="clue-list">
-          {orderedPlayers.map((player, idx) => (
+          {orderedPlayers.map((player, idx) => {
+            const voteStatus = player.vote === "skip" ? "skip"
+              : player.vote !== null && player.vote !== undefined ? "voted"
+              : null;
+            return (
             <div key={player.id} className="clue-row">
               <div className="clue-player-info">
                 <span className="clue-order-num">{idx + 1}</span>
-                <span className="clue-player-name">{player.name}</span>
+                <span className="clue-player-name">
+                  {player.name}
+                  {player.id === playerInfo.id && (
+                    <span className="badge badge-you">You</span>
+                  )}
+                  {player.is_host && (
+                    <span className="badge badge-host">Host</span>
+                  )}
+                  {!player.connected && (
+                    <span className="badge badge-disconnected">Disconnected</span>
+                  )}
+                  {voteStatus === "skip" && (
+                    <span className="badge badge-skip">Skipped</span>
+                  )}
+                  {voteStatus === "voted" && (
+                    <span className="badge badge-voted">Voted</span>
+                  )}
+                </span>
+                {isHost && player.id !== playerInfo.id && (
+                  <button
+                    className="kick-btn"
+                    title="Kick player"
+                    onClick={() => setKickTarget({ id: player.id, name: player.name })}
+                  >
+                    <UserX size={13} />
+                  </button>
+                )}
               </div>
               {player.clue === "__word_revealed__" ? (
                 <span className="clue-revealed">⚠️ Typed the word!</span>
@@ -102,7 +143,8 @@ export default function VotingPage() {
                 <span className="clue-word">{player.clue || "—"}</span>
               )}
             </div>
-          ))}
+          );
+          })}
         </div>
       </div>
 
@@ -133,11 +175,41 @@ export default function VotingPage() {
                   </span>
                   <span className="vote-player-name">{player.name}</span>
                   {isSelf && <span className="vote-self-hint">(you)</span>}
+                  {player.is_host && <span className="badge badge-host">Host</span>}
+                  {!player.connected && <span className="badge badge-disconnected">Disconnected</span>}
                 </button>
               );
             })}
           </div>
+          <button className="skip-vote-btn" onClick={handleSkip}>
+            Skip Vote
+          </button>
         </div>
+      )}
+
+      {confirmLeave && (
+        <ConfirmModal
+          title="Leave Room?"
+          message="Are you sure you want to leave the game?"
+          confirmLabel="Leave"
+          confirmDanger
+          onConfirm={leaveRoom}
+          onCancel={() => setConfirmLeave(false)}
+        />
+      )}
+
+      {kickTarget && (
+        <ConfirmModal
+          title="Kick Player?"
+          message={`Remove ${kickTarget.name} from the room?`}
+          confirmLabel="Kick"
+          confirmDanger
+          onConfirm={() => {
+            sendMessage({ type: "kick_player", target_id: kickTarget.id });
+            setKickTarget(null);
+          }}
+          onCancel={() => setKickTarget(null)}
+        />
       )}
     </div>
   );

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { UserX, Eye } from "lucide-react";
 import { useGame } from "../context/GameContext";
+import ConfirmModal from "../components/ConfirmModal";
 
 function useCountdown(startTime, duration, serverTime) {
   const [remaining, setRemaining] = useState(null);
@@ -36,8 +38,12 @@ function useCountdown(startTime, duration, serverTime) {
 }
 
 export default function GamePage() {
-  const { gameState, playerInfo, sendMessage, error } = useGame();
+  const { gameState, playerInfo, sendMessage, leaveRoom, error } = useGame();
+  const isHost = gameState?.host === playerInfo?.id;
   const [clue, setClue] = useState("");
+  const [revealing, setRevealing] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [kickTarget, setKickTarget] = useState(null);
 
   if (!gameState) return <div className="page center"><p>Loading...</p></div>;
 
@@ -67,27 +73,43 @@ export default function GamePage() {
 
   return (
     <div className="page">
-      <div className="game-header">
-        {gameState.is_imposter ? (
-          <div className="imposter-reveal">
-            <div className="imposter-icon">🎭</div>
-            <h2>You are the IMPOSTER!</h2>
-            {gameState.word ? (
-              <>
-                <p className="word-label">Your word is</p>
-                <div className="secret-word">{gameState.word}</div>
-                <p className="word-hint">This is close to the real word — blend in!</p>
-              </>
-            ) : (
-              <p>Blend in. Don't get caught.</p>
-            )}
+      <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
+      <div
+        className="game-header"
+        onPointerDown={() => gameState.settings?.discreet_mode && setRevealing(true)}
+        onPointerUp={() => setRevealing(false)}
+        onPointerLeave={() => setRevealing(false)}
+        style={gameState.settings?.discreet_mode ? { userSelect: "none", touchAction: "none" } : undefined}
+      >
+        {gameState.settings?.discreet_mode && !revealing ? (
+          <div className="discreet-card">
+            <p className="discreet-label">Your role is hidden</p>
+            <button className="btn reveal-hold-btn" tabIndex={-1}>
+              <Eye size={18} /> Hold to reveal
+            </button>
           </div>
         ) : (
-          <div className="word-reveal">
-            <p className="word-label">The secret word is</p>
-            <div className="secret-word">{gameState.word}</div>
-            <p className="word-hint">Give a clue — but don't make it too obvious!</p>
-          </div>
+          gameState.is_imposter ? (
+            <div className="imposter-reveal">
+              <div className="imposter-icon">🎭</div>
+              <h2>You are the IMPOSTER!</h2>
+              {gameState.word ? (
+                <>
+                  <p className="word-label">Your word is</p>
+                  <div className="secret-word">{gameState.word}</div>
+                  <p className="word-hint">This is close to the real word — blend in!</p>
+                </>
+              ) : (
+                <p>Blend in. Don't get caught.</p>
+              )}
+            </div>
+          ) : (
+            <div className="word-reveal">
+              <p className="word-label">The secret word is</p>
+              <div className="secret-word">{gameState.word}</div>
+              <p className="word-hint">Give a clue — but don't make it too obvious!</p>
+            </div>
+          )
         )}
       </div>
 
@@ -142,7 +164,22 @@ export default function GamePage() {
                     {player.id === playerInfo.id && (
                       <span className="badge badge-you">You</span>
                     )}
+                    {player.is_host && (
+                      <span className="badge badge-host">Host</span>
+                    )}
+                    {!player.connected && (
+                      <span className="badge badge-disconnected">Disconnected</span>
+                    )}
                   </span>
+                  {isHost && player.id !== playerInfo.id && (
+                    <button
+                      className="kick-btn"
+                      title="Kick player"
+                      onClick={() => setKickTarget({ id: player.id, name: player.name })}
+                    >
+                      <UserX size={13} />
+                    </button>
+                  )}
                 </div>
                 <div className="clue-value">
                   {player.clue === "__word_revealed__" ? (
@@ -160,6 +197,31 @@ export default function GamePage() {
           </div>
         </div>
       </div>
+
+      {confirmLeave && (
+        <ConfirmModal
+          title="Leave Room?"
+          message="Are you sure you want to leave the game?"
+          confirmLabel="Leave"
+          confirmDanger
+          onConfirm={leaveRoom}
+          onCancel={() => setConfirmLeave(false)}
+        />
+      )}
+
+      {kickTarget && (
+        <ConfirmModal
+          title="Kick Player?"
+          message={`Remove ${kickTarget.name} from the room?`}
+          confirmLabel="Kick"
+          confirmDanger
+          onConfirm={() => {
+            sendMessage({ type: "kick_player", target_id: kickTarget.id });
+            setKickTarget(null);
+          }}
+          onCancel={() => setKickTarget(null)}
+        />
+      )}
     </div>
   );
 }
