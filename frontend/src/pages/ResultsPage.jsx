@@ -129,6 +129,9 @@ export default function ResultsPage() {
             {orderedPlayers.map((player, idx) => {
               const isImposter = results.imposters.includes(player.id);
               const voteCount = results.vote_counts?.[player.id] || 0;
+              const votedFor = player.vote && player.vote !== "skip"
+                ? gameState.players.find((p) => p.id === player.vote)?.name
+                : null;
               return (
                 <div
                   key={player.id}
@@ -138,6 +141,8 @@ export default function ResultsPage() {
                     <span className="clue-order-num">{idx + 1}</span>
                     <span className="clue-player-name">
                       {player.name}
+                    </span>
+                    <span className="badge-group">
                       {isImposter && <span className="badge badge-imposter">Imposter</span>}
                       {player.revealed && <span className="badge badge-revealed">Revealed</span>}
                       {player.eliminated && <span className="badge badge-revealed">Eliminated</span>}
@@ -151,6 +156,11 @@ export default function ResultsPage() {
                     ) : (
                       <span className="clue-word">{player.clue || "—"}</span>
                     )}
+                    {votedFor ? (
+                      <span className="voted-for-tag">voted {votedFor}</span>
+                    ) : player.vote === "skip" ? (
+                      <span className="voted-for-tag voted-skip">skipped</span>
+                    ) : null}
                     {voteCount > 0 && (
                       <span className="vote-tally">
                         {voteCount} vote{voteCount !== 1 ? "s" : ""}

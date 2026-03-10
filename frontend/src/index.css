@@ -199,9 +199,15 @@ body {
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 99px;
-  margin-left: 6px;
+  margin-left: 4px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge-group .badge {
+  margin-left: 0;
 }
 
 .badge-you { background: var(--primary-light); color: #a78bfa; }
@@ -211,6 +217,14 @@ body {
 .badge-skip { background: #1e293b; color: #94a3b8; }
 .badge-voted { background: var(--success-light); color: #4ade80; }
 .badge-disconnected { background: #6b7280; color: #fff; }
+
+.badge-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  flex-shrink: 1;
+  min-width: 0;
+}
 
 /* =====================
    Home Page
@@ -644,7 +658,10 @@ body {
 .clue-player-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+  flex: 1;
 }
 
 .clue-order-num {
@@ -666,6 +683,7 @@ body {
   font-size: 13px;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .clue-word {
@@ -1023,6 +1041,7 @@ body {
 .result-clue-row {
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
 }
 
 .imposter-row {
@@ -1033,7 +1052,25 @@ body {
 .result-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.voted-for-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  background: var(--primary-light);
+  color: #a78bfa;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+.voted-for-tag.voted-skip {
+  background: #1e293b;
+  color: #94a3b8;
 }
 
 .vote-tally {
