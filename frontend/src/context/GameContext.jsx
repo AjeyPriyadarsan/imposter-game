@@ -186,6 +186,18 @@ export function GameProvider({ children }) {
     }
   }, []);
 
+  // Optimistic settings update — patches gameState immediately, then sends to server
+  const updateSettings = useCallback((settingsUpdate) => {
+    setGameState((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        settings: { ...prev.settings, ...settingsUpdate },
+      };
+    });
+    sendMessage({ type: "update_settings", settings: settingsUpdate });
+  }, [sendMessage]);
+
   const leaveRoom = useCallback(() => {
     if (wsRef.current) {
       wsRef.current.close();
@@ -200,7 +212,7 @@ export function GameProvider({ children }) {
 
   return (
     <GameContext.Provider
-      value={{ playerInfo, gameState, error, createRoom, joinRoom, sendMessage, leaveRoom, pendingRoomCode, reconnecting }}
+      value={{ playerInfo, gameState, error, createRoom, joinRoom, sendMessage, updateSettings, leaveRoom, pendingRoomCode, reconnecting }}
     >
       {children}
     </GameContext.Provider>
