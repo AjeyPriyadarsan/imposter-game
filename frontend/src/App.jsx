@@ -6,8 +6,6 @@ import VotingPage from "./pages/VotingPage";
 import ResultsPage from "./pages/ResultsPage";
 import RoundEndPage from "./pages/RoundEndPage";
 
-const ACTIVE_STATES = ["playing", "voting", "round_end", "results"];
-
 export default function App() {
   const { gameState, playerInfo, reconnecting } = useGame();
 
@@ -28,8 +26,6 @@ export default function App() {
       </div>
     );
   }
-
-  const showRoleBadge = ACTIVE_STATES.includes(gameState.state);
 
   let page;
   switch (gameState.state) {
@@ -52,14 +48,5 @@ export default function App() {
       page = <HomePage />;
   }
 
-  return (
-    <>
-      {showRoleBadge && !gameState.settings?.discreet_mode && (
-        <div className={`role-badge-bar ${gameState.is_imposter ? "role-imposter" : "role-innocent"}`}>
-          {gameState.is_imposter ? "🎭 You are the Imposter" : "😇 You are Innocent"}
-        </div>
-      )}
-      {page}
-    </>
-  );
+  return page;
 }

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useGame } from "../context/GameContext";
-import { Copy, Check, Settings, Users, Timer, Vote, Layers, UserX, Play, Eye, Gauge } from "lucide-react";
+import { Copy, Check, Settings, Users, Timer, Vote, Layers, UserX, Play, Eye, EyeOff, Gauge } from "lucide-react";
 import ConfirmModal from "../components/ConfirmModal";
 
 export default function LobbyPage() {
-  const { gameState, playerInfo, sendMessage, updateSettings, leaveRoom, error } = useGame();
+  const { gameState, playerInfo, sendMessage, updateSettings, leaveRoom, error, localDiscreet, setLocalDiscreet } = useGame();
   const [copied, setCopied] = useState(false);
   const [idleSecsLeft, setIdleSecsLeft] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -81,45 +81,72 @@ export default function LobbyPage() {
         </div>
       )}
 
-      {/* Players Card */}
-      <div className="card" style={{ width: "100%" }}>
-        <div className="section-header">
-          <h2>
-            <Users size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
-            Players ({playerCount}/20)
-          </h2>
+      <div className="lobby-two-col">
+        {/* Players Card */}
+        <div className="card lobby-col-card">
+          <div className="section-header">
+            <h2>
+              <Users size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
+              Players ({playerCount}/{settings.max_players || 10})
+            </h2>
+          </div>
+          <div className="lobby-scroll-area">
+            <ul className="player-list">
+              {gameState.players.map((p, idx) => (
+                <li key={p.id} className="player-item">
+                  <span className="player-name">
+                    <span className="player-avatar" style={{ background: colors[idx % colors.length] }}>
+                      {p.name.charAt(0).toUpperCase()}
+                    </span>
+                    {p.name}
+                    {p.id === playerInfo.id && <span className="badge badge-you">You</span>}
+                    {p.is_host && <span className="badge badge-host">Host</span>}
+                  </span>
+                  {isHost && p.id !== playerInfo.id && (
+                    <button
+                      className="kick-btn"
+                      title="Kick player"
+                      onClick={() => setKickTarget({ id: p.id, name: p.name })}
+                    >
+                      <UserX size={14} />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
-        <ul className="player-list">
-          {gameState.players.map((p, idx) => (
-            <li key={p.id} className="player-item">
-              <span className="player-name">
-                <span className="player-avatar" style={{ background: colors[idx % colors.length] }}>
-                  {p.name.charAt(0).toUpperCase()}
-                </span>
-                {p.name}
-                {p.id === playerInfo.id && <span className="badge badge-you">You</span>}
-                {p.is_host && <span className="badge badge-host">Host</span>}
-              </span>
-              {isHost && p.id !== playerInfo.id && (
-                <button
-                  className="kick-btn"
-                  title="Kick player"
-                  onClick={() => setKickTarget({ id: p.id, name: p.name })}
-                >
-                  <UserX size={14} />
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
 
-      {/* Settings Card — host only */}
-      {isHost && (
-        <div className="settings-card">
+        {/* Settings Card — host only */}
+        {isHost && (
+          <div className="settings-card lobby-col-card">
           <div className="settings-card-header">
             <Settings size={16} className="settings-icon" />
             <h2>Game Settings</h2>
+          </div>
+
+          <div className="lobby-scroll-area">
+          <div className="setting-block">
+            <div className="setting-block-top">
+              <span className="setting-name">
+                <Users size={14} />
+                Max Players
+              </span>
+              <span className="setting-current-value">{settings.max_players || 10}</span>
+            </div>
+            <div className="setting-slider">
+              <span className="slider-label">{Math.max(3, playerCount)}</span>
+              <input
+                type="range"
+                className="slider"
+                min={Math.max(3, playerCount)}
+                max={20}
+                value={settings.max_players || 10}
+                disabled={!isHost}
+                onChange={(e) => updateSetting("max_players", Number(e.target.value))}
+              />
+              <span className="slider-label">20</span>
+            </div>
           </div>
 
           <div className="setting-block">
@@ -197,7 +224,7 @@ export default function LobbyPage() {
               <span className="setting-current-value">{settings.num_rounds}</span>
             </div>
             <div className="setting-options">
-              {[1, 2, 3].map((n) => {
+              {[1, 2, 3, 4, 5, 6].map((n) => {
                 const tooFew = n < settings.num_imposters;
                 return (
                   <button
@@ -270,17 +297,19 @@ export default function LobbyPage() {
               {(settings.word_similarity ?? "similar") === "random" && "Imposter gets a totally unrelated word (e.g. forest → icecream)"}
             </p>
           </div>
+          </div>
         </div>
-      )}
+        )}
 
-      {/* Non-host settings summary */}
-      {!isHost && (
-        <div className="rules-info">
+        {/* Non-host settings summary */}
+        {!isHost && (
+          <div className="rules-info">
           <p>
-            {settings.num_imposters} imposter{settings.num_imposters > 1 ? "s" : ""} · {settings.thinking_time}s think · {settings.voting_time}s vote · {settings.num_rounds} round{settings.num_rounds > 1 ? "s" : ""}{settings.discreet_mode ? " · discreet" : ""} · {settings.word_similarity ?? "similar"} words
+            max {settings.max_players || 10} players · {settings.num_imposters} imposter{settings.num_imposters > 1 ? "s" : ""} · {settings.thinking_time}s think · {settings.voting_time}s vote · {settings.num_rounds} round{settings.num_rounds > 1 ? "s" : ""}{settings.discreet_mode ? " · discreet" : ""} · {settings.word_similarity ?? "similar"} words
           </p>
         </div>
-      )}
+        )}
+      </div>
 
       {/* Host controls */}
       {isHost && (
@@ -302,6 +331,18 @@ export default function LobbyPage() {
 
       {!isHost && (
         <p className="hint center-text">Waiting for host to start the game...</p>
+      )}
+
+      {/* Per-player discreet mode toggle */}
+      <button
+        className={`discreet-toggle lobby-discreet${localDiscreet ? " active" : ""}`}
+        onClick={() => setLocalDiscreet((d) => !d)}
+      >
+        {localDiscreet ? <EyeOff size={14} /> : <Eye size={14} />}
+        {localDiscreet ? "Discreet Mode On" : "Enable Discreet Mode"}
+      </button>
+      {localDiscreet && (
+        <p className="hint center-text">Your word and role will be hidden during the game. Hold to reveal.</p>
       )}
 
       {confirmLeave && (

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { UserX, Eye } from "lucide-react";
+import { UserX, Eye, EyeOff, ShieldAlert, AlertTriangle } from "lucide-react";
 import { useGame } from "../context/GameContext";
 import ConfirmModal from "../components/ConfirmModal";
 
@@ -38,7 +38,7 @@ function useCountdown(startTime, duration, serverTime) {
 }
 
 export default function GamePage() {
-  const { gameState, playerInfo, sendMessage, leaveRoom, error } = useGame();
+  const { gameState, playerInfo, sendMessage, leaveRoom, error, localDiscreet, setLocalDiscreet } = useGame();
   const isHost = gameState?.host === playerInfo?.id;
   const [clue, setClue] = useState("");
   const [revealing, setRevealing] = useState(false);
@@ -47,6 +47,7 @@ export default function GamePage() {
 
   if (!gameState) return <div className="page center"><p>Loading...</p></div>;
 
+  const isDiscreet = gameState.settings?.discreet_mode || localDiscreet;
   const thinkingTime = gameState.settings?.thinking_time || 30;
   const remaining = useCountdown(
     gameState.turn_start_time,
@@ -73,15 +74,26 @@ export default function GamePage() {
 
   return (
     <div className="page">
-      <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
+      <div className="top-actions">
+        <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
+        {!gameState.settings?.discreet_mode && (
+          <button
+            className={`discreet-toggle${localDiscreet ? " active" : ""}`}
+            onClick={() => setLocalDiscreet((d) => !d)}
+          >
+            {localDiscreet ? <EyeOff size={14} /> : <Eye size={14} />}
+            Discreet
+          </button>
+        )}
+      </div>
       <div
         className="game-header"
-        onPointerDown={() => gameState.settings?.discreet_mode && setRevealing(true)}
+        onPointerDown={() => isDiscreet && setRevealing(true)}
         onPointerUp={() => setRevealing(false)}
         onPointerLeave={() => setRevealing(false)}
-        style={gameState.settings?.discreet_mode ? { userSelect: "none", touchAction: "none" } : undefined}
+        style={isDiscreet ? { userSelect: "none", touchAction: "none" } : undefined}
       >
-        {gameState.settings?.discreet_mode && !revealing ? (
+        {isDiscreet && !revealing ? (
           <div className="discreet-card">
             <p className="discreet-label">Your role is hidden</p>
             <button className="btn reveal-hold-btn" tabIndex={-1}>
@@ -91,7 +103,7 @@ export default function GamePage() {
         ) : (
           gameState.is_imposter ? (
             <div className="imposter-reveal">
-              <div className="imposter-icon">🎭</div>
+              <div className="imposter-icon"><ShieldAlert size={44} /></div>
               <h2>You are the IMPOSTER!</h2>
               {gameState.word ? (
                 <>
@@ -183,7 +195,7 @@ export default function GamePage() {
                 </div>
                 <div className="clue-value">
                   {player.clue === "__word_revealed__" ? (
-                    <span className="clue-revealed">⚠️ Typed the word!</span>
+                    <span className="clue-revealed"><AlertTriangle size={13} style={{ marginRight: 4, verticalAlign: "middle" }} /> Typed the word!</span>
                   ) : player.clue ? (
                     <span className="clue-word">{player.clue}</span>
                   ) : player.id === gameState.current_player_id ? (

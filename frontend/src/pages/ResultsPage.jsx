@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useGame } from "../context/GameContext";
+import { Target, Siren, Scale, ShieldOff, AlertTriangle } from "lucide-react";
 import ConfirmModal from "../components/ConfirmModal";
 
 const AUTO_LOBBY_DELAY = 30;
@@ -65,22 +66,22 @@ export default function ResultsPage() {
   let bannerClass, bannerIcon, bannerTitle, bannerSub;
   if (imposter_guessed) {
     bannerClass = "outcome-escaped";
-    bannerIcon = "🎯";
+    bannerIcon = <Target size={44} />;
     bannerTitle = "Imposter Guessed the Word!";
     bannerSub = results.win_reason || "The imposter wins!";
   } else if (caught) {
     bannerClass = "outcome-caught";
-    bannerIcon = "🚨";
+    bannerIcon = <Siren size={44} />;
     bannerTitle = "Imposter Caught!";
     bannerSub = results.win_reason || "The crew wins!";
   } else if (tie) {
     bannerClass = "outcome-tie";
-    bannerIcon = "🤝";
+    bannerIcon = <Scale size={44} />;
     bannerTitle = "Imposter Wins!";
     bannerSub = results.win_reason || "The crew couldn't agree — imposter escapes!";
   } else {
     bannerClass = "outcome-escaped";
-    bannerIcon = "🎭";
+    bannerIcon = <ShieldOff size={44} />;
     bannerTitle = "Imposter Escaped!";
     bannerSub = results.win_reason || "The imposter fooled everyone";
   }
@@ -129,6 +130,9 @@ export default function ResultsPage() {
             {orderedPlayers.map((player, idx) => {
               const isImposter = results.imposters.includes(player.id);
               const voteCount = results.vote_counts?.[player.id] || 0;
+              const votedFor = player.vote && player.vote !== "skip"
+                ? gameState.players.find((p) => p.id === player.vote)?.name
+                : null;
               return (
                 <div
                   key={player.id}
@@ -138,6 +142,8 @@ export default function ResultsPage() {
                     <span className="clue-order-num">{idx + 1}</span>
                     <span className="clue-player-name">
                       {player.name}
+                    </span>
+                    <span className="badge-group">
                       {isImposter && <span className="badge badge-imposter">Imposter</span>}
                       {player.revealed && <span className="badge badge-revealed">Revealed</span>}
                       {player.eliminated && <span className="badge badge-revealed">Eliminated</span>}
@@ -147,10 +153,15 @@ export default function ResultsPage() {
                   </div>
                   <div className="result-right">
                     {player.clue === "__word_revealed__" ? (
-                      <span className="clue-revealed">Typed the word!</span>
+                      <span className="clue-revealed"><AlertTriangle size={13} style={{ marginRight: 4, verticalAlign: "middle" }} /> Typed the word!</span>
                     ) : (
                       <span className="clue-word">{player.clue || "—"}</span>
                     )}
+                    {votedFor ? (
+                      <span className="voted-for-tag">voted {votedFor}</span>
+                    ) : player.vote === "skip" ? (
+                      <span className="voted-for-tag voted-skip">skipped</span>
+                    ) : null}
                     {voteCount > 0 && (
                       <span className="vote-tally">
                         {voteCount} vote{voteCount !== 1 ? "s" : ""}
