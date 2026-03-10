@@ -40,6 +40,7 @@ export function GameProvider({ children }) {
     return new Promise((resolve) => {
       let resolved = false;
       let opened = false;
+      let kicked = false;
       const ws = new WebSocket(`${WS_URL}/ws/${roomId}/${playerId}`);
 
       ws.onmessage = (event) => {
@@ -48,6 +49,15 @@ export function GameProvider({ children }) {
           setGameState(msg.payload);
         } else if (msg.type === "error") {
           setError(msg.payload.message);
+          setTimeout(() => setError(null), 3000);
+        } else if (msg.type === "kicked") {
+          kicked = true;
+          clearSession(roomId);
+          setPlayerInfo(null);
+          setGameState(null);
+          setPendingRoomCode(null);
+          history.pushState(null, "", "/");
+          setError("You were kicked by the host.");
           setTimeout(() => setError(null), 3000);
         } else if (msg.type === "room_closed") {
           clearSession(roomId);
@@ -67,7 +77,7 @@ export function GameProvider({ children }) {
 
       ws.onclose = (e) => {
         if (!resolved) { resolved = true; resolve(false); }
-        else if (opened) {
+        else if (opened && !kicked) {
           if (e.code === 4008) {
             clearSession(roomId);
             setPlayerInfo(null);
