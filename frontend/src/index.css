@@ -1708,6 +1708,23 @@ body {
   color: #ef4444;
 }
 
+.end-match-btn {
+  display: block;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid #f59e0b;
+  border-radius: var(--radius-sm);
+  color: #f59e0b;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.end-match-btn:hover {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
 .discreet-toggle {
   display: inline-flex;
   align-items: center;

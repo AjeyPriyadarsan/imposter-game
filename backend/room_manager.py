@@ -475,10 +475,29 @@ class RoomManager:
 
             if eliminated_id in room["imposters"]:
                 elim_name = room["players"][eliminated_id]["name"]
-                room["outcome"] = "innocents_win"
-                room["win_reason"] = f"{elim_name} was voted out and was the imposter!"
-                room["state"] = "results"
-                room["phase_start_time"] = time.time()
+                remaining_imposters = sum(
+                    1 for pid in room["imposters"]
+                    if not room["players"][pid].get("eliminated")
+                    and not room["players"][pid].get("kicked")
+                    and not room["players"][pid].get("left")
+                )
+                if remaining_imposters == 0:
+                    room["outcome"] = "innocents_win"
+                    room["win_reason"] = f"{elim_name} was voted out and was the imposter!"
+                    room["state"] = "results"
+                    room["phase_start_time"] = time.time()
+                else:
+                    win_reason = self._check_imposter_win_condition(room)
+                    if win_reason:
+                        room["outcome"] = "imposter_wins"
+                        room["win_reason"] = win_reason
+                        room["state"] = "results"
+                        room["phase_start_time"] = time.time()
+                    else:
+                        room["outcome"] = None
+                        room["win_reason"] = None
+                        room["state"] = "round_end"
+                        room["phase_start_time"] = time.time()
             else:
                 win_reason = self._check_imposter_win_condition(room)
                 if win_reason:
@@ -541,6 +560,48 @@ class RoomManager:
             self._resolve_voting(room)
         else:
             self._save_room(room)
+        return True
+
+    def end_match(self, room_id: str, player_id: str) -> bool:
+        """Host ends the match early, returning everyone to lobby."""
+        room = self._get_room(room_id)
+        if not room:
+            return False
+        if room["host"] != player_id:
+            return False
+        if room["state"] == "lobby":
+            return False
+        room["state"] = "lobby"
+        room["word"] = None
+        room["imposter_word"] = None
+        room["imposters"] = []
+        room["clue_order"] = []
+        room["current_turn"] = 0
+        room["outcome"] = None
+        room["current_round"] = 1
+        room["total_rounds"] = 1
+        room["last_vote_counts"] = {}
+        room["last_most_voted_ids"] = []
+        room["last_eliminated_id"] = None
+        room["idle_expires_at"] = time.time() + 1200
+        kicked_or_left = [pid for pid, p in room["players"].items()
+                          if p.get("kicked") or p.get("left")]
+        for pid in kicked_or_left:
+            del room["players"][pid]
+        if room["host"] not in room["players"] and room["players"]:
+            room["host"] = next(iter(room["players"]))
+        for p in room["players"].values():
+            p["clue"] = None
+            p["vote"] = None
+            p["revealed"] = False
+            p["eliminated"] = False
+            p["word_revealer"] = False
+        settings = room.get("settings")
+        if settings and room["players"]:
+            max_imp = self.get_max_imposters(len(room["players"]))
+            if settings["num_imposters"] > max_imp:
+                settings["num_imposters"] = max_imp
+        self._save_room(room)
         return True
 
     def play_again(self, room_id: str) -> bool:
@@ -721,6 +782,12 @@ class RoomManager:
             "round_end_info": round_end_info,
             "settings": room.get("settings", default_settings),
             "max_imposters": self.get_max_imposters(len(room["players"])),
+            "remaining_imposters": sum(
+                1 for pid in room["imposters"]
+                if not room["players"][pid].get("eliminated")
+                and not room["players"][pid].get("kicked")
+                and not room["players"][pid].get("left")
+            ),
             "turn_start_time": room.get("turn_start_time"),
             "phase_start_time": room.get("phase_start_time"),
             "server_time": time.time(),

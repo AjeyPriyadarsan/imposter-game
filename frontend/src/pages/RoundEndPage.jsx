@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useGame } from "../context/GameContext";
-import { SkipForward, Scale, Ban, Eye } from "lucide-react";
+import { SkipForward, Scale, Ban, Eye, AlertTriangle } from "lucide-react";
+import ConfirmModal from "../components/ConfirmModal";
 
 const AUTO_ADVANCE_DELAY = 60;
 
@@ -43,7 +44,9 @@ export default function RoundEndPage() {
   const isAnonymous = gameState.settings?.anonymous_role === true;
   const isDiscreet = gameState.settings?.discreet_mode === true;
   const isAnonymousVoter = gameState.settings?.anonymous_voter !== false;
+  const [confirmEndMatch, setConfirmEndMatch] = useState(false);
   const [revealingElim, setRevealingElim] = useState(false);
+  const iAmEliminated = playerInfo.id === eliminated_id;
 
   const colors = ["#7c3aed", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444", "#8b5cf6", "#06b6d4"];
 
@@ -61,6 +64,12 @@ export default function RoundEndPage() {
 
   return (
     <div className="page center">
+      <div className="top-actions">
+        {isHost && (
+          <button className="end-match-btn" onClick={() => setConfirmEndMatch(true)}>End Match</button>
+        )}
+      </div>
+
       <div className="round-indicator">Round {currentRound} of {totalRounds}</div>
 
       <div className={`outcome-banner ${(was_tie || skip_won) ? "outcome-tie" : "outcome-escaped"}`}>
@@ -79,31 +88,39 @@ export default function RoundEndPage() {
             ? "No one was eliminated — game continues"
             : "The investigation continues..."}
         </p>
-        {isAnonymous && !isDiscreet && eliminated_was_imposter !== null && (
-          <span className={`badge ${eliminated_was_imposter ? "badge-imposter" : "badge-innocent"}`}>
-            {eliminated_was_imposter ? "Was Imposter!" : "Was Innocent"}
-          </span>
-        )}
-        {isAnonymous && isDiscreet && eliminated_was_imposter !== null && (
-          <div
-            className={`discreet-card${revealingElim ? " revealing" : ""}`}
-            onMouseDown={() => setRevealingElim(true)}
-            onMouseUp={() => setRevealingElim(false)}
-            onMouseLeave={() => setRevealingElim(false)}
-            onTouchStart={() => setRevealingElim(true)}
-            onTouchEnd={() => setRevealingElim(false)}
-            style={{ userSelect: "none", touchAction: "none", marginTop: 8 }}
-          >
-            {revealingElim ? (
-              <span className={`badge ${eliminated_was_imposter ? "badge-imposter" : "badge-innocent"}`}>
-                {eliminated_was_imposter ? "Was Imposter!" : "Was Innocent"}
-              </span>
-            ) : (
-              <p className="discreet-label"><Eye size={14} /> Hold to reveal role</p>
-            )}
-          </div>
+        {isAnonymous && iAmEliminated && eliminated_was_imposter !== null && (
+          isDiscreet ? (
+            <div
+              className={`discreet-card${revealingElim ? " revealing" : ""}`}
+              onMouseDown={() => setRevealingElim(true)}
+              onMouseUp={() => setRevealingElim(false)}
+              onMouseLeave={() => setRevealingElim(false)}
+              onTouchStart={() => setRevealingElim(true)}
+              onTouchEnd={() => setRevealingElim(false)}
+              style={{ userSelect: "none", touchAction: "none", marginTop: 8 }}
+            >
+              {revealingElim ? (
+                <span className={`badge ${eliminated_was_imposter ? "badge-imposter" : "badge-innocent"}`}>
+                  You were {eliminated_was_imposter ? "the Imposter!" : "Innocent"}
+                </span>
+              ) : (
+                <p className="discreet-label"><Eye size={14} /> Hold to reveal your role</p>
+              )}
+            </div>
+          ) : (
+            <span className={`badge ${eliminated_was_imposter ? "badge-imposter" : "badge-innocent"}`}>
+              You were {eliminated_was_imposter ? "the Imposter!" : "Innocent"}
+            </span>
+          )
         )}
       </div>
+
+      {iAmEliminated && (
+        <div className="alert alert-warning" style={{ width: "100%", boxSizing: "border-box" }}>
+          <AlertTriangle size={15} style={{ marginRight: 6, verticalAlign: "middle" }} />
+          You have been eliminated — you cannot vote in the next round. You can watch what's happening.
+        </div>
+      )}
 
       {(votedPlayers.length > 0 || (skip_count || 0) > 0) && (
         <div className="result-card card" style={{ width: "100%" }}>
@@ -212,6 +229,20 @@ export default function RoundEndPage() {
           </p>
         )}
       </div>
+
+      {confirmEndMatch && (
+        <ConfirmModal
+          title="End Match?"
+          message="Are you sure you want to end the match? Everyone will return to the lobby."
+          confirmLabel="End Match"
+          confirmDanger
+          onConfirm={() => {
+            sendMessage({ type: "end_match" });
+            setConfirmEndMatch(false);
+          }}
+          onCancel={() => setConfirmEndMatch(false)}
+        />
+      )}
     </div>
   );
 }

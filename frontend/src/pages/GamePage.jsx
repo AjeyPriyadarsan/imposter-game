@@ -43,6 +43,7 @@ export default function GamePage() {
   const [clue, setClue] = useState("");
   const [revealing, setRevealing] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmEndMatch, setConfirmEndMatch] = useState(false);
   const [kickTarget, setKickTarget] = useState(null);
 
   if (!gameState) return <div className="page center"><p>Loading...</p></div>;
@@ -58,6 +59,7 @@ export default function GamePage() {
 
   const me = gameState.players.find((p) => p.id === playerInfo.id);
   const isWordRevealer = me?.word_revealer === true;
+  const isEliminated = me?.eliminated === true;
   const isMyTurn = gameState.current_player_id === playerInfo.id;
   const currentPlayer = gameState.players.find(
     (p) => p.id === gameState.current_player_id
@@ -79,6 +81,9 @@ export default function GamePage() {
     <div className="page">
       <div className="top-actions">
         <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
+        {isHost && (
+          <button className="end-match-btn" onClick={() => setConfirmEndMatch(true)}>End Match</button>
+        )}
         {!gameState.settings?.discreet_mode && (
           <button
             className={`discreet-toggle${localDiscreet ? " active" : ""}`}
@@ -103,7 +108,7 @@ export default function GamePage() {
               <Eye size={18} /> Hold to reveal
             </button>
           </div>
-        ) : isAnonymous ? (
+        ) : isAnonymous && !isEliminated ? (
           <div className="word-reveal">
             <p className="word-label">Your word is</p>
             <div className="secret-word">{gameState.word}</div>
@@ -134,6 +139,20 @@ export default function GamePage() {
           </div>
         )}
       </div>
+
+      {!isAnonymous && gameState.remaining_imposters !== undefined && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#94a3b8', marginTop: '4px', justifyContent: 'center' }}>
+          <ShieldAlert size={14} />
+          <span>{gameState.remaining_imposters} imposter{gameState.remaining_imposters !== 1 ? 's' : ''} remaining</span>
+        </div>
+      )}
+
+      {isEliminated && (
+        <div className="alert alert-warning">
+          <AlertTriangle size={15} style={{ marginRight: 6, verticalAlign: "middle" }} />
+          You have been eliminated — you cannot give clues or vote. You can watch what's happening.
+        </div>
+      )}
 
       {isWordRevealer && (
         <div className="alert alert-warning">
@@ -256,6 +275,20 @@ export default function GamePage() {
             setKickTarget(null);
           }}
           onCancel={() => setKickTarget(null)}
+        />
+      )}
+
+      {confirmEndMatch && (
+        <ConfirmModal
+          title="End Match?"
+          message="Are you sure you want to end the match? Everyone will return to the lobby."
+          confirmLabel="End Match"
+          confirmDanger
+          onConfirm={() => {
+            sendMessage({ type: "end_match" });
+            setConfirmEndMatch(false);
+          }}
+          onCancel={() => setConfirmEndMatch(false)}
         />
       )}
     </div>

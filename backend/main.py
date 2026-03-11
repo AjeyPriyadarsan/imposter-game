@@ -288,6 +288,14 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                         await manager.broadcast(room_id)
                         schedule_turn_timer(room_id)
 
+            elif msg_type == "end_match":
+                room = manager._get_room(room_id)
+                if room and room["host"] == player_id and room["state"] != "lobby":
+                    cancel_timer(room_id)
+                    if manager.end_match(room_id, player_id):
+                        await manager.broadcast(room_id)
+                        schedule_idle_timer(room_id)
+
             elif msg_type == "play_again":
                 room = manager._get_room(room_id)
                 if room and room["host"] == player_id:
