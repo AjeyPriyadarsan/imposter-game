@@ -53,6 +53,17 @@ export default function LobbyPage() {
     sendMessage({ type: "start_game" });
   }
 
+  useEffect(() => {
+    if (!isHost || !canStart) return;
+    function onKey(e) {
+      if (e.key === "Enter" && !e.target.matches("input, textarea, button")) {
+        handleStart();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isHost, canStart]);
+
   function updateSetting(key, value) {
     updateSettings({ [key]: value });
   }
@@ -62,7 +73,7 @@ export default function LobbyPage() {
   const colors = ["#7c3aed", "#ec4899", "#f59e0b", "#10b981", "#3b82f6", "#ef4444", "#8b5cf6", "#06b6d4"];
 
   return (
-    <div className="page center">
+    <div className="page center lobby-page">
       <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
       <div className="room-code-display">
         <span className="room-code-label">Room Code</span>
@@ -81,7 +92,7 @@ export default function LobbyPage() {
         </div>
       )}
 
-      <div className="lobby-two-col">
+      <div className={`lobby-two-col${isHost ? "" : " lobby-single-col"}`}>
         {/* Players Card */}
         <div className="card lobby-col-card">
           <div className="section-header">
@@ -90,7 +101,7 @@ export default function LobbyPage() {
               Players ({playerCount}/{settings.max_players || 10})
             </h2>
           </div>
-          <div className="lobby-scroll-area">
+          <div className="lobby-scroll-area player-list-scroll">
             <ul className="player-list">
               {gameState.players.map((p, idx) => (
                 <li key={p.id} className="player-item">
@@ -297,19 +308,54 @@ export default function LobbyPage() {
               {(settings.word_similarity ?? "similar") === "random" && "Imposter gets a totally unrelated word (e.g. forest → icecream)"}
             </p>
           </div>
+
+          <div className="setting-block">
+            <div className="setting-block-top">
+              <span className="setting-name"><EyeOff size={14} /> Anonymous Role</span>
+              <span className="setting-current-value">{settings.anonymous_role ? "On" : "Off"}</span>
+            </div>
+            <div className="setting-options">
+              <button className={`settings-btn${!settings.anonymous_role ? " active" : ""}`}
+                onClick={() => updateSetting("anonymous_role", false)}>Off</button>
+              <button className={`settings-btn${settings.anonymous_role ? " active" : ""}`}
+                onClick={() => updateSetting("anonymous_role", true)}>On</button>
+            </div>
+            <p className="hint" style={{ marginTop: 6 }}>
+              Nobody sees their role until someone is eliminated.
+            </p>
+          </div>
+
+          <div className="setting-block">
+            <div className="setting-block-top">
+              <span className="setting-name"><EyeOff size={14} /> Anonymous Voter</span>
+              <span className="setting-current-value">{settings.anonymous_voter !== false ? "On" : "Off"}</span>
+            </div>
+            <div className="setting-options">
+              <button className={`settings-btn${settings.anonymous_voter === false ? " active" : ""}`}
+                onClick={() => updateSetting("anonymous_voter", false)}>Off</button>
+              <button className={`settings-btn${settings.anonymous_voter !== false ? " active" : ""}`}
+                onClick={() => updateSetting("anonymous_voter", true)}>On</button>
+            </div>
+            <p className="hint" style={{ marginTop: 6 }}>
+              {settings.anonymous_voter !== false
+                ? "Vote counts shown each round — who voted whom revealed only at final results."
+                : "Who voted for whom is revealed after every round."}
+            </p>
+          </div>
           </div>
         </div>
         )}
 
-        {/* Non-host settings summary */}
-        {!isHost && (
-          <div className="rules-info">
+      </div>
+
+      {/* Non-host settings summary */}
+      {!isHost && (
+        <div className="rules-info">
           <p>
-            max {settings.max_players || 10} players · {settings.num_imposters} imposter{settings.num_imposters > 1 ? "s" : ""} · {settings.thinking_time}s think · {settings.voting_time}s vote · {settings.num_rounds} round{settings.num_rounds > 1 ? "s" : ""}{settings.discreet_mode ? " · discreet" : ""} · {settings.word_similarity ?? "similar"} words
+            max {settings.max_players || 10} players · {settings.num_imposters} imposter{settings.num_imposters > 1 ? "s" : ""} · {settings.thinking_time}s think · {settings.voting_time}s vote · {settings.num_rounds} round{settings.num_rounds > 1 ? "s" : ""}{settings.discreet_mode ? " · discreet" : ""} · {settings.word_similarity ?? "similar"} words{settings.anonymous_role ? " · anon roles" : ""}{settings.anonymous_voter === false ? " · open votes" : ""}
           </p>
         </div>
-        )}
-      </div>
+      )}
 
       {/* Host controls */}
       {isHost && (

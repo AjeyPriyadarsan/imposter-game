@@ -207,6 +207,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
     if not room or player_id not in room["players"]:
         await websocket.close(code=4004)
         return
+    player_data = room["players"][player_id]
+    if player_data.get("kicked") or player_data.get("left"):
+        await websocket.close(code=4009)
+        return
 
     await manager.connect(room_id, player_id, websocket)
     manager.set_player_connected(room_id, player_id, True)
@@ -263,7 +267,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                         "payload": {"message": "Clue must be a single word"}
                     })
                     continue
-                if manager.submit_clue(room_id, player_id, clue):
+                success, clue_error = manager.submit_clue(room_id, player_id, clue)
+                if success:
                     manager.auto_advance_turn(room_id)
                     await manager.broadcast(room_id)
                     room = manager._get_room(room_id)
@@ -271,6 +276,11 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                         schedule_post_voting_timer(room_id)
                     else:
                         schedule_turn_timer(room_id)
+                elif clue_error:
+                    await websocket.send_json({
+                        "type": "error",
+                        "payload": {"message": clue_error}
+                    })
 
             elif msg_type == "submit_vote":
                 voted_id = data.get("voted_id")
@@ -332,20 +342,144 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                         manager._save_room(room)
                         await manager.broadcast(room_id)
                 else:
+                    # Mark as permanently kicked (distinct from naturally disconnected)
+                    room["players"][target_id]["kicked"] = True
+                    manager._save_room(room)
                     manager.set_player_connected(room_id, target_id, False)
                     room = manager._get_room(room_id)
-                    if room["state"] == "playing":
-                        if manager.auto_advance_turn(room_id):
-                            schedule_turn_timer(room_id)
-                    elif room["state"] == "voting":
-                        if manager.check_voting_complete(room_id):
+
+                    # Check if all imposters are now out (kicked, left, or eliminated)
+                    imposters = room.get("imposters", [])
+                    active_imposters = [
+                        pid for pid in imposters
+                        if not room["players"][pid].get("kicked")
+                        and not room["players"][pid].get("eliminated")
+                        and not room["players"][pid].get("left")
+                    ]
+
+                    if imposters and len(active_imposters) == 0:
+                        # All imposters gone — innocents win immediately
+                        kicked_name = room["players"][target_id]["name"]
+                        room["outcome"] = "innocents_win"
+                        room["win_reason"] = f"Host kicked {kicked_name} — the last imposter! Innocents win!"
+                        room["state"] = "results"
+                        room["phase_start_time"] = time.time()
+                        room.setdefault("last_vote_counts", {})
+                        room.setdefault("last_most_voted_ids", [])
+                        room["last_eliminated_id"] = target_id
+                        manager._save_room(room)
+                        cancel_timer(room_id)
+                        await manager.broadcast(room_id)
+                    else:
+                        # Check if reduced player count triggers imposter parity win
+                        win_reason = manager._check_imposter_win_condition(room)
+                        if win_reason:
+                            room["outcome"] = "imposter_wins"
+                            room["win_reason"] = win_reason
+                            room["state"] = "results"
+                            room["phase_start_time"] = time.time()
+                            room.setdefault("last_vote_counts", {})
+                            room.setdefault("last_most_voted_ids", [])
+                            room["last_eliminated_id"] = None
+                            manager._save_room(room)
                             cancel_timer(room_id)
-                    await manager.broadcast(room_id)
+                            await manager.broadcast(room_id)
+                        else:
+                            if room["state"] == "playing":
+                                if manager.auto_advance_turn(room_id):
+                                    schedule_turn_timer(room_id)
+                            elif room["state"] == "voting":
+                                if manager.check_voting_complete(room_id):
+                                    cancel_timer(room_id)
+                            await manager.broadcast(room_id)
+
+            elif msg_type == "leave_game":
+                room = manager._get_room(room_id)
+                if not room or player_id not in room.get("players", {}):
+                    continue
+                # Notify the leaving player then close their connection
+                try:
+                    await websocket.send_json({"type": "left"})
+                    await websocket.close(code=4009)
+                except Exception:
+                    pass
+                manager.disconnect(room_id, player_id)
+
+                if room["state"] == "lobby":
+                    del room["players"][player_id]
+                    if player_id in room["clue_order"]:
+                        room["clue_order"].remove(player_id)
+                    if player_id in room["imposters"]:
+                        room["imposters"].remove(player_id)
+                    if room["host"] == player_id and room["players"]:
+                        room["host"] = next(iter(room["players"]))
+                    if not room["players"]:
+                        manager._delete_room(room_id)
+                    else:
+                        settings = room.get("settings")
+                        if settings:
+                            max_imp = manager.get_max_imposters(len(room["players"]))
+                            if settings["num_imposters"] > max_imp:
+                                settings["num_imposters"] = max_imp
+                        manager._save_room(room)
+                        await manager.broadcast(room_id)
+                else:
+                    left_name = room["players"][player_id]["name"]
+                    room["players"][player_id]["left"] = True
+                    room["players"][player_id]["connected"] = False
+                    manager._save_room(room)
+
+                    # Check if all imposters are now out (kicked, left, or eliminated)
+                    imposters = room.get("imposters", [])
+                    active_imposters = [
+                        pid for pid in imposters
+                        if not room["players"][pid].get("kicked")
+                        and not room["players"][pid].get("eliminated")
+                        and not room["players"][pid].get("left")
+                    ]
+
+                    if imposters and len(active_imposters) == 0:
+                        room["outcome"] = "innocents_win"
+                        room["win_reason"] = f"{left_name} left the game — and was the last imposter! Innocents win!"
+                        room["state"] = "results"
+                        room["phase_start_time"] = time.time()
+                        room.setdefault("last_vote_counts", {})
+                        room.setdefault("last_most_voted_ids", [])
+                        room["last_eliminated_id"] = None
+                        manager._save_room(room)
+                        cancel_timer(room_id)
+                        await manager.broadcast(room_id)
+                    else:
+                        win_reason = manager._check_imposter_win_condition(room)
+                        if win_reason:
+                            room["outcome"] = "imposter_wins"
+                            room["win_reason"] = win_reason
+                            room["state"] = "results"
+                            room["phase_start_time"] = time.time()
+                            room.setdefault("last_vote_counts", {})
+                            room.setdefault("last_most_voted_ids", [])
+                            room["last_eliminated_id"] = None
+                            manager._save_room(room)
+                            cancel_timer(room_id)
+                            await manager.broadcast(room_id)
+                        else:
+                            if room["state"] == "playing":
+                                if manager.auto_advance_turn(room_id):
+                                    schedule_turn_timer(room_id)
+                            elif room["state"] == "voting":
+                                if manager.check_voting_complete(room_id):
+                                    cancel_timer(room_id)
+                            await manager.broadcast(room_id)
+                # Stop processing messages — connection is closed
+                return
 
     except WebSocketDisconnect:
         manager.disconnect(room_id, player_id)
         room = manager._get_room(room_id)
         if not room or player_id not in room["players"]:
+            return
+        # Already handled by leave_game message — skip disconnect processing
+        if room["players"][player_id].get("left"):
             return
 
         if room["state"] == "lobby":

@@ -35,6 +35,7 @@ export function GameProvider({ children }) {
   const [reconnecting, setReconnecting] = useState(false);
   const [localDiscreet, setLocalDiscreet] = useState(false);
   const wsRef = useRef(null);
+  const gameStateRef = useRef(null);
 
   // Returns a Promise<boolean> — true if WS connected successfully, false if rejected
   const connectWs = useCallback((roomId, playerId) => {
@@ -48,6 +49,7 @@ export function GameProvider({ children }) {
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
         if (msg.type === "state_update") {
+          gameStateRef.current = msg.payload;
           setGameState(msg.payload);
         } else if (msg.type === "error") {
           setError(msg.payload.message);
@@ -57,15 +59,17 @@ export function GameProvider({ children }) {
           clearSession(roomId);
           setPlayerInfo(null);
           setGameState(null);
+          gameStateRef.current = null;
           setPendingRoomCode(null);
           history.pushState(null, "", "/");
           setError("You were kicked by the host.");
-          setTimeout(() => setError(null), 3000);
+          setTimeout(() => setError(null), 5000);
         } else if (msg.type === "room_closed") {
           roomClosed = true;
           clearSession(roomId);
           setPlayerInfo(null);
           setGameState(null);
+          gameStateRef.current = null;
           setPendingRoomCode(null);
           history.pushState(null, "", "/");
           setError(msg.payload.message || "Room closed due to inactivity");
@@ -85,12 +89,33 @@ export function GameProvider({ children }) {
             clearSession(roomId);
             setPlayerInfo(null);
             setGameState(null);
+            gameStateRef.current = null;
             setPendingRoomCode(null);
             history.pushState(null, "", "/");
             setError("You were kicked by the host.");
-            setTimeout(() => setError(null), 3000);
+            setTimeout(() => setError(null), 5000);
+          } else if (e.code === 4009) {
+            // Kicked or left — session already cleared by handler
+            clearSession(roomId);
+            setPlayerInfo(null);
+            setGameState(null);
+            gameStateRef.current = null;
+            setPendingRoomCode(null);
+            history.pushState(null, "", "/");
           } else {
-            setError("Connection lost. Please refresh.");
+            const state = gameStateRef.current?.state;
+            if (!state || state === "lobby") {
+              clearSession(roomId);
+              setPlayerInfo(null);
+              setGameState(null);
+              gameStateRef.current = null;
+              setPendingRoomCode(null);
+              history.pushState(null, "", "/");
+              setError("Room closed.");
+              setTimeout(() => setError(null), 5000);
+            } else {
+              setError("Connection lost. Please refresh.");
+            }
           }
         }
       };
@@ -203,9 +228,8 @@ export function GameProvider({ children }) {
   }, [sendMessage]);
 
   const leaveRoom = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "leave_game" }));
     }
     if (playerInfo?.roomId) clearSession(playerInfo.roomId);
     setPlayerInfo(null);
