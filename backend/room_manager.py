@@ -27,7 +27,7 @@ class RoomManager:
 
     def _generate_room_id(self) -> str:
         while True:
-            room_id = "".join(random.choices(string.ascii_uppercase, k=4))
+            room_id = "".join(random.choices(string.digits, k=4))
             if not self._room_exists(room_id):
                 return room_id
 
@@ -70,9 +70,9 @@ class RoomManager:
                 "word_similarity": "similar",
                 "max_players": 10,
                 "anonymous_role": False,
-                "anonymous_voter": True,
+                "anonymous_voter": False,
             },
-            "idle_expires_at": time.time() + 600,
+            "idle_expires_at": time.time() + 1200,
         }
         self._save_room(room)
         self.connections[room_id] = {}
@@ -83,7 +83,7 @@ class RoomManager:
         # ~1 imposter per 3 players: 3-5→1, 6-8→2, 9-11→3, 12-14→4, 15-17→5, 18-20→6
         return max(1, player_count // 3)
 
-    def reset_idle_timer(self, room_id: str, seconds: int = 600) -> bool:
+    def reset_idle_timer(self, room_id: str, seconds: int = 1200) -> bool:
         room = self._get_room(room_id)
         if not room or room["state"] != "lobby":
             return False
@@ -559,7 +559,7 @@ class RoomManager:
         room["last_vote_counts"] = {}
         room["last_most_voted_ids"] = []
         room["last_eliminated_id"] = None
-        room["idle_expires_at"] = time.time() + 600
+        room["idle_expires_at"] = time.time() + 1200
         # Remove kicked/left players — they should not appear in the next lobby
         kicked_or_left = [pid for pid, p in room["players"].items()
                           if p.get("kicked") or p.get("left")]

@@ -6,8 +6,8 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000";
 
 function getUrlRoomCode() {
-  const path = window.location.pathname.slice(1).toUpperCase();
-  return /^[A-Z]{4}$/.test(path) ? path : null;
+  const path = window.location.pathname.slice(1);
+  return /^\d{4}$/.test(path) ? path : null;
 }
 
 function saveSession(roomId, playerId, name) {
@@ -185,7 +185,7 @@ export function GameProvider({ children }) {
     async (roomId, name) => {
       try {
         setError(null);
-        const code = roomId.trim().toUpperCase();
+        const code = roomId.trim();
         const res = await fetch(`${API_URL}/rooms/${code}/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -19,8 +19,6 @@ export default function LobbyPage() {
     }
 
     const initial = getRemaining();
-    if (initial > 300) { setIdleSecsLeft(null); return; }
-
     setIdleSecsLeft(Math.ceil(initial));
     const iv = setInterval(() => {
       const r = getRemaining();
@@ -88,7 +86,7 @@ export default function LobbyPage() {
       {idleSecsLeft !== null && (
         <div className="idle-warning">
           <Timer size={14} />
-          Room closes in {Math.floor(idleSecsLeft / 60)}:{String(idleSecsLeft % 60).padStart(2, "0")} due to inactivity
+          Room auto-closes in {Math.floor(idleSecsLeft / 60)}:{String(idleSecsLeft % 60).padStart(2, "0")} if idle
         </div>
       )}
 

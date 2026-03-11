@@ -118,9 +118,9 @@ export default function HomePage() {
           <input
             className="input input-large"
             type="text"
-            placeholder="Room code (e.g. ABCD)"
+            placeholder="Room code (e.g. 1234)"
             value={roomCode}
-            onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+            onChange={(e) => setRoomCode(e.target.value.replace(/\D/g, ""))}
             maxLength={4}
             readOnly={!!pendingRoomCode}
           />
