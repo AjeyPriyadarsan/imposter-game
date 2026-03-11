@@ -58,29 +58,33 @@ export default function ResultsPage() {
     .map((id) => gameState.players.find((p) => p.id === id))
     .filter(Boolean);
 
+  const votedByMap = {};
+  gameState.players.forEach((voter) => {
+    if (voter.vote && voter.vote !== "skip") {
+      if (!votedByMap[voter.vote]) votedByMap[voter.vote] = [];
+      votedByMap[voter.vote].push(voter);
+    }
+  });
+
   function handlePlayAgain() {
     sendMessage({ type: "play_again" });
   }
 
   // Outcome banner
-  let bannerClass, bannerIcon, bannerTitle, bannerSub;
+  let bannerIcon, bannerTitle, bannerSub;
   if (imposter_guessed) {
-    bannerClass = "outcome-escaped";
     bannerIcon = <Target size={44} />;
     bannerTitle = "Imposter Guessed the Word!";
     bannerSub = results.win_reason || "The imposter wins!";
   } else if (caught) {
-    bannerClass = "outcome-caught";
     bannerIcon = <Siren size={44} />;
     bannerTitle = "Imposter Caught!";
     bannerSub = results.win_reason || "The crew wins!";
   } else if (tie) {
-    bannerClass = "outcome-tie";
     bannerIcon = <Scale size={44} />;
     bannerTitle = "Imposter Wins!";
     bannerSub = results.win_reason || "The crew couldn't agree — imposter escapes!";
   } else {
-    bannerClass = "outcome-escaped";
     bannerIcon = <ShieldOff size={44} />;
     bannerTitle = "Imposter Escaped!";
     bannerSub = results.win_reason || "The imposter fooled everyone";
@@ -93,15 +97,19 @@ export default function ResultsPage() {
         <div className="round-indicator">Round {currentRound} of {totalRounds}</div>
       )}
 
-      <div className={`outcome-banner ${bannerClass}`}>
+      <div className={`outcome-banner ${iWon ? "outcome-win" : "outcome-lose"}`}>
         <div className="outcome-icon">{bannerIcon}</div>
         <h1>{bannerTitle}</h1>
         <p>{bannerSub}</p>
-      </div>
-
-      <div className={`personal-result ${iWon ? "result-win" : "result-lose"}`}>
-        {iWon ? "You won!" : "You lost!"}
-        {iWasImposter && " (you were the imposter)"}
+        <div className="outcome-personal">
+          <div className="outcome-personal-result">{iWon ? "You won!" : "You lost!"}</div>
+          <div className="outcome-personal-role">
+            You were{" "}
+            <span className={iWasImposter ? "role-imposter" : "role-innocent"}>
+              {iWasImposter ? "the Imposter" : "Innocent"}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="results-grid">
@@ -130,42 +138,38 @@ export default function ResultsPage() {
             {orderedPlayers.map((player, idx) => {
               const isImposter = results.imposters.includes(player.id);
               const voteCount = results.vote_counts?.[player.id] || 0;
-              const votedFor = player.vote && player.vote !== "skip"
-                ? gameState.players.find((p) => p.id === player.vote)?.name
-                : null;
+              const voterNames = votedByMap[player.id]?.map((v) => v.name) || [];
               return (
                 <div
                   key={player.id}
                   className={`clue-row result-clue-row ${isImposter ? "imposter-row" : ""}`}
                 >
-                  <div className="clue-player-info">
+                  <div className="result-row-top">
                     <span className="clue-order-num">{idx + 1}</span>
-                    <span className="clue-player-name">
-                      {player.name}
-                    </span>
+                    <span className="clue-player-name">{player.name}</span>
                     <span className="badge-group">
                       {isImposter && <span className="badge badge-imposter">Imposter</span>}
                       {player.revealed && <span className="badge badge-revealed">Revealed</span>}
                       {player.eliminated && <span className="badge badge-revealed">Eliminated</span>}
                       {player.id === playerInfo.id && <span className="badge badge-you">You</span>}
-                      {!player.connected && <span className="badge badge-disconnected">Disconnected</span>}
+                      {player.kicked ? (
+                        <span className="badge badge-kicked">Kicked</span>
+                      ) : !player.connected ? (
+                        <span className="badge badge-disconnected">Disconnected</span>
+                      ) : null}
                     </span>
                   </div>
-                  <div className="result-right">
+                  <div className="result-row-bottom">
                     {player.clue === "__word_revealed__" ? (
-                      <span className="clue-revealed"><AlertTriangle size={13} style={{ marginRight: 4, verticalAlign: "middle" }} /> Typed the word!</span>
+                      <span className="clue-revealed"><AlertTriangle size={13} /> Typed the word!</span>
                     ) : (
                       <span className="clue-word">{player.clue || "—"}</span>
                     )}
-                    {votedFor ? (
-                      <span className="voted-for-tag">voted {votedFor}</span>
-                    ) : player.vote === "skip" ? (
-                      <span className="voted-for-tag voted-skip">skipped</span>
-                    ) : null}
+                    {voterNames.length > 0 && (
+                      <span className="voted-for-tag">voted by: {voterNames.join(", ")}</span>
+                    )}
                     {voteCount > 0 && (
-                      <span className="vote-tally">
-                        {voteCount} vote{voteCount !== 1 ? "s" : ""}
-                      </span>
+                      <span className="vote-tally">{voteCount} vote{voteCount !== 1 ? "s" : ""}</span>
                     )}
                   </div>
                 </div>
@@ -173,13 +177,13 @@ export default function ResultsPage() {
             })}
             {(results.skip_count || 0) > 0 && (
               <div className="clue-row result-clue-row">
-                <div className="clue-player-info">
+                <div className="result-row-top">
                   <span className="clue-order-num">—</span>
                   <span className="clue-player-name" style={{ color: "var(--text-muted, #9ca3af)" }}>
                     Skipped / No vote
                   </span>
                 </div>
-                <div className="result-right">
+                <div className="result-row-bottom">
                   <span className="vote-tally">
                     {results.skip_count} skip{results.skip_count !== 1 ? "s" : ""}
                   </span>

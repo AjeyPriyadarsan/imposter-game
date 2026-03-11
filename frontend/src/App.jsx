@@ -9,23 +9,9 @@ import RoundEndPage from "./pages/RoundEndPage";
 export default function App() {
   const { gameState, playerInfo, reconnecting } = useGame();
 
-  if (reconnecting) {
-    return (
-      <div className="page center">
-        <p>Reconnecting...</p>
-      </div>
-    );
-  }
-
+  if (reconnecting) return <div className="page center"><p>Reconnecting...</p></div>;
   if (!playerInfo) return <HomePage />;
-
-  if (!gameState) {
-    return (
-      <div className="page center">
-        <p>Connecting to room...</p>
-      </div>
-    );
-  }
+  if (!gameState) return <div className="page center"><p>Connecting to room...</p></div>;
 
   let page;
   switch (gameState.state) {

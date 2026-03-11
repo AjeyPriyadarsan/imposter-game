@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { UserX, Eye, EyeOff, ShieldAlert, AlertTriangle } from "lucide-react";
+import { UserX, Eye, EyeOff, ShieldAlert, AlertTriangle, ShieldCheck } from "lucide-react";
 import { useGame } from "../context/GameContext";
 import ConfirmModal from "../components/ConfirmModal";
 
@@ -48,6 +48,7 @@ export default function GamePage() {
   if (!gameState) return <div className="page center"><p>Loading...</p></div>;
 
   const isDiscreet = gameState.settings?.discreet_mode || localDiscreet;
+  const isAnonymous = gameState.settings?.anonymous_role === true;
   const thinkingTime = gameState.settings?.thinking_time || 30;
   const remaining = useCountdown(
     gameState.turn_start_time,
@@ -55,6 +56,8 @@ export default function GamePage() {
     gameState.server_time
   );
 
+  const me = gameState.players.find((p) => p.id === playerInfo.id);
+  const isWordRevealer = me?.word_revealer === true;
   const isMyTurn = gameState.current_player_id === playerInfo.id;
   const currentPlayer = gameState.players.find(
     (p) => p.id === gameState.current_player_id
@@ -100,30 +103,44 @@ export default function GamePage() {
               <Eye size={18} /> Hold to reveal
             </button>
           </div>
+        ) : isAnonymous ? (
+          <div className="word-reveal">
+            <p className="word-label">Your word is</p>
+            <div className="secret-word">{gameState.word}</div>
+            <span className="badge" style={{ background: "#6b7280", marginTop: 6 }}>Role: Anonymous</span>
+            <p className="word-hint">Your role is hidden — Give a clue!</p>
+          </div>
+        ) : gameState.is_imposter ? (
+          <div className="imposter-reveal">
+            <div className="imposter-icon"><ShieldAlert size={44} /></div>
+            <h2>You are the IMPOSTER!</h2>
+            {gameState.word ? (
+              <>
+                <p className="word-label">Your word is</p>
+                <div className="secret-word">{gameState.word}</div>
+                <p className="word-hint">This is close to the real word — blend in!</p>
+              </>
+            ) : (
+              <p>Blend in. Don't get caught.</p>
+            )}
+          </div>
         ) : (
-          gameState.is_imposter ? (
-            <div className="imposter-reveal">
-              <div className="imposter-icon"><ShieldAlert size={44} /></div>
-              <h2>You are the IMPOSTER!</h2>
-              {gameState.word ? (
-                <>
-                  <p className="word-label">Your word is</p>
-                  <div className="secret-word">{gameState.word}</div>
-                  <p className="word-hint">This is close to the real word — blend in!</p>
-                </>
-              ) : (
-                <p>Blend in. Don't get caught.</p>
-              )}
-            </div>
-          ) : (
-            <div className="word-reveal">
-              <p className="word-label">The secret word is</p>
-              <div className="secret-word">{gameState.word}</div>
-              <p className="word-hint">Give a clue — but don't make it too obvious!</p>
-            </div>
-          )
+          <div className="innocent-reveal">
+            <div className="innocent-icon"><ShieldCheck size={44} /></div>
+            <h2>You are Innocent!</h2>
+            <p className="word-label">The secret word is</p>
+            <div className="secret-word">{gameState.word}</div>
+            <p className="word-hint">Give a clue — but don't make it too obvious!</p>
+          </div>
         )}
       </div>
+
+      {isWordRevealer && (
+        <div className="alert alert-warning">
+          <AlertTriangle size={15} style={{ marginRight: 6, verticalAlign: "middle" }} />
+          You revealed the secret word — you cannot give clues or vote. You can watch what's happening.
+        </div>
+      )}
 
       {error && <div className="alert alert-error">{error}</div>}
 
@@ -179,11 +196,18 @@ export default function GamePage() {
                     {player.is_host && (
                       <span className="badge badge-host">Host</span>
                     )}
-                    {!player.connected && (
+                    {player.kicked ? (
+                      <span className="badge badge-kicked">Kicked</span>
+                    ) : player.left ? (
+                      <span className="badge badge-left">Left</span>
+                    ) : !player.connected ? (
                       <span className="badge badge-disconnected">Disconnected</span>
+                    ) : null}
+                    {player.word_revealer && (
+                      <span className="badge badge-word-revealer">Vote won't count</span>
                     )}
                   </span>
-                  {isHost && player.id !== playerInfo.id && (
+                  {isHost && player.id !== playerInfo.id && !player.kicked && !player.left && (
                     <button
                       className="kick-btn"
                       title="Kick player"
