@@ -49,6 +49,7 @@ class RoomManager:
                     "connected": True,
                     "revealed": False,
                     "eliminated": False,
+                    "left": False,
                 }
             },
             "state": "lobby",
@@ -68,6 +69,8 @@ class RoomManager:
                 "discreet_mode": False,
                 "word_similarity": "similar",
                 "max_players": 10,
+                "anonymous_role": False,
+                "anonymous_voter": True,
             },
             "idle_expires_at": time.time() + 600,
         }
@@ -144,6 +147,14 @@ class RoomManager:
             if settings["word_similarity"] in ("similar", "somewhat", "random"):
                 current["word_similarity"] = settings["word_similarity"]
 
+        if "anonymous_role" in settings:
+            if isinstance(settings["anonymous_role"], bool):
+                current["anonymous_role"] = settings["anonymous_role"]
+
+        if "anonymous_voter" in settings:
+            if isinstance(settings["anonymous_voter"], bool):
+                current["anonymous_voter"] = settings["anonymous_voter"]
+
         room["settings"] = current
         self._save_room(room)
         return True, ""
@@ -166,6 +177,7 @@ class RoomManager:
             "connected": True,
             "revealed": False,
             "eliminated": False,
+            "left": False,
         }
         self._save_room(room)
         return player_id
@@ -189,7 +201,8 @@ class RoomManager:
         while room["current_turn"] < len(clue_order):
             current_pid = clue_order[room["current_turn"]]
             p = room["players"].get(current_pid, {})
-            if p.get("connected", True) and not p.get("eliminated", False):
+            if p.get("connected", True) and not p.get("eliminated", False) \
+               and not p.get("kicked", False) and not p.get("left", False):
                 break  # Current player is connected and active, stop
             room["current_turn"] += 1
             changed = True
@@ -213,7 +226,9 @@ class RoomManager:
         eligible = [p for p in room["players"].values()
                     if p.get("connected", True)
                     and not p.get("revealed", False)
-                    and not p.get("eliminated", False)]
+                    and not p.get("eliminated", False)
+                    and not p.get("kicked", False)
+                    and not p.get("left", False)]
         if not eligible:
             return False
         all_voted = all(p["vote"] is not None for p in eligible)
@@ -261,18 +276,27 @@ class RoomManager:
             p["vote"] = None
             p["revealed"] = False
             p["eliminated"] = False
+            p["word_revealer"] = False
         self._save_room(room)
         return True
 
-    def submit_clue(self, room_id: str, player_id: str, clue: str) -> bool:
+    @staticmethod
+    def _clue_contains_word(clue: str, word: str) -> bool:
+        """Returns True if clue contains the secret word or its reverse as a substring."""
+        clue_lower = clue.lower()
+        word_lower = word.lower()
+        reversed_word = word_lower[::-1]
+        return word_lower in clue_lower or reversed_word in clue_lower
+
+    def submit_clue(self, room_id: str, player_id: str, clue: str) -> tuple[bool, str]:
         room = self._get_room(room_id)
         if not room or room["state"] != "playing":
-            return False
+            return False, ""
         clue_order = room["clue_order"]
         if room["current_turn"] >= len(clue_order):
-            return False
+            return False, ""
         if clue_order[room["current_turn"]] != player_id:
-            return False
+            return False, ""
 
         normalized = clue.strip().lower()
 
@@ -287,20 +311,34 @@ class RoomManager:
             room["state"] = "results"
             room["phase_start_time"] = time.time()
             self._save_room(room)
-            return True
+            return True, ""
 
-        # Innocent reveals the secret word → mark as revealed, advance turn
+        # Innocent reveals the secret word exactly → mark as revealed, advance turn
         if player_id not in room["imposters"] and normalized == room["word"].lower():
             room["players"][player_id]["clue"] = "__word_revealed__"
             room["players"][player_id]["revealed"] = True
+            room["players"][player_id]["word_revealer"] = True
             room["current_turn"] += 1
-            if room["current_turn"] >= len(clue_order):
+
+            # Check parity immediately after marking revealed
+            win_reason = self._check_imposter_win_condition(room)
+            if win_reason:
+                room["outcome"] = "imposter_win"
+                room["win_reason"] = win_reason
+                room["state"] = "results"
+                room["phase_start_time"] = time.time()
+            elif room["current_turn"] >= len(clue_order):
                 room["state"] = "voting"
                 room["phase_start_time"] = time.time()
             else:
                 room["turn_start_time"] = time.time()
+
             self._save_room(room)
-            return True
+            return True, ""
+
+        # Innocent clue contains the word or its reverse as a substring → reject
+        if player_id not in room["imposters"] and self._clue_contains_word(normalized, room["word"]):
+            return False, "Your clue contains or hints at the secret word!"
 
         room["players"][player_id]["clue"] = normalized
         room["current_turn"] += 1
@@ -311,7 +349,7 @@ class RoomManager:
         else:
             room["turn_start_time"] = time.time()
         self._save_room(room)
-        return True
+        return True, ""
 
     def skip_turn(self, room_id: str) -> bool:
         """Skip the current player's turn (timer expired). Returns True if state changed."""
@@ -346,7 +384,9 @@ class RoomManager:
         """Returns True if active imposters >= active innocents."""
         players = room["players"]
         imposters = set(room["imposters"])
-        active = [p for p in players.values() if not p.get("eliminated") and not p.get("revealed")]
+        active = [p for p in players.values()
+                  if not p.get("eliminated") and not p.get("revealed")
+                  and not p.get("kicked") and not p.get("left")]
         active_imposters = sum(1 for p in active if p["id"] in imposters)
         active_innocents = len(active) - active_imposters
         return active_imposters >= active_innocents
@@ -355,7 +395,9 @@ class RoomManager:
         """Returns a win-reason string if imposters win right now, else None."""
         players = room["players"]
         imposters = set(room["imposters"])
-        active = [p for p in players.values() if not p.get("eliminated") and not p.get("revealed")]
+        active = [p for p in players.values()
+                  if not p.get("eliminated") and not p.get("revealed")
+                  and not p.get("kicked") and not p.get("left")]
         active_imposters = sum(1 for p in active if p["id"] in imposters)
         active_innocents = len(active) - active_imposters
 
@@ -387,13 +429,19 @@ class RoomManager:
         """Resolve voting: eliminate a player or end the game. Saves room state."""
         players = room["players"]
 
-        # Eligible: connected, not eliminated, not revealed
-        eligible = [
-            p for p in players.values()
-            if p.get("connected", True)
-            and not p.get("eliminated")
-            and not p.get("revealed")
-        ]
+        # Eligible: not eliminated, not revealed (word revealers keep revealed=True across rounds)
+        # Kicked/left players count only if they had already voted before exiting
+        eligible = []
+        for p in players.values():
+            if p.get("eliminated") or p.get("revealed"):
+                continue
+            if p.get("kicked") or p.get("left"):
+                # Only count their vote if they cast one before exiting
+                if p["vote"] is not None:
+                    eligible.append(p)
+                # else: excluded entirely — left/kicked without voting
+            else:
+                eligible.append(p)
 
         # Skip count = explicit "skip" votes + players who never voted (None)
         skip_count = sum(1 for p in eligible if p["vote"] is None or p["vote"] == "skip")
@@ -468,22 +516,26 @@ class RoomManager:
         if voted_id != "skip":
             if voted_id not in room["players"]:
                 return False
-            # Cannot vote for eliminated or revealed players
+            # Cannot vote for eliminated, revealed, kicked, or left players
             target = room["players"].get(voted_id, {})
-            if target.get("eliminated", False) or target.get("revealed", False):
+            if target.get("eliminated", False) or target.get("revealed", False) \
+               or target.get("kicked", False) or target.get("left", False):
                 return False
-        # Eliminated/revealed players cannot vote
+        # Eliminated/revealed/kicked/left players cannot vote
         voter = room["players"].get(voter_id, {})
-        if voter.get("revealed", False) or voter.get("eliminated", False):
+        if voter.get("revealed", False) or voter.get("eliminated", False) \
+           or voter.get("kicked", False) or voter.get("left", False):
             return False
 
         room["players"][voter_id]["vote"] = voted_id
 
-        # All active connected players must vote
+        # Wait for connected non-kicked/left players; disconnected handled by timer
         eligible = [p for p in room["players"].values()
                     if p.get("connected", True)
                     and not p.get("revealed", False)
-                    and not p.get("eliminated", False)]
+                    and not p.get("eliminated", False)
+                    and not p.get("kicked", False)
+                    and not p.get("left", False)]
         all_voted = all(p["vote"] is not None for p in eligible)
         if all_voted:
             self._resolve_voting(room)
@@ -508,11 +560,26 @@ class RoomManager:
         room["last_most_voted_ids"] = []
         room["last_eliminated_id"] = None
         room["idle_expires_at"] = time.time() + 600
+        # Remove kicked/left players — they should not appear in the next lobby
+        kicked_or_left = [pid for pid, p in room["players"].items()
+                          if p.get("kicked") or p.get("left")]
+        for pid in kicked_or_left:
+            del room["players"][pid]
+        # If host was removed, transfer to next available player
+        if room["host"] not in room["players"] and room["players"]:
+            room["host"] = next(iter(room["players"]))
         for p in room["players"].values():
             p["clue"] = None
             p["vote"] = None
             p["revealed"] = False
             p["eliminated"] = False
+            p["word_revealer"] = False
+        # Clamp num_imposters if player count dropped
+        settings = room.get("settings")
+        if settings and room["players"]:
+            max_imp = self.get_max_imposters(len(room["players"]))
+            if settings["num_imposters"] > max_imp:
+                settings["num_imposters"] = max_imp
         self._save_room(room)
         return True
 
@@ -521,9 +588,10 @@ class RoomManager:
         if not room or room["state"] != "round_end":
             return False
 
-        # Exclude eliminated and revealed players from next round
+        # Exclude eliminated, revealed (word revealers), kicked, and left players from next round
         eligible_ids = [pid for pid, p in room["players"].items()
-                        if not p.get("revealed", False) and not p.get("eliminated", False)]
+                        if not p.get("revealed", False) and not p.get("eliminated", False)
+                        and not p.get("kicked", False) and not p.get("left", False)]
         random.shuffle(eligible_ids)
 
         # Keep the same word and imposters across rounds of the same match
@@ -594,6 +662,9 @@ class RoomManager:
                 "connected": player.get("connected", True),
                 "revealed": player.get("revealed", False),
                 "eliminated": player.get("eliminated", False),
+                "kicked": player.get("kicked", False),
+                "left": player.get("left", False),
+                "word_revealer": player.get("word_revealer", False),
             })
 
         current_player_id = None
@@ -617,6 +688,7 @@ class RoomManager:
                 "was_tie": elim_id is None and not skip_won,
                 "skip_won": skip_won,
                 "skip_count": room.get("last_skip_count", 0),
+                "eliminated_was_imposter": (elim_id in room["imposters"]) if elim_id else None,
             }
 
         is_imposter = player_id in room["imposters"]
@@ -632,7 +704,7 @@ class RoomManager:
             "num_imposters": 1, "thinking_time": 30,
             "voting_time": 60, "num_rounds": 1,
             "discreet_mode": False, "word_similarity": "similar",
-            "max_players": 10,
+            "max_players": 10, "anonymous_role": False,
         }
 
         return {

@@ -46,6 +46,7 @@ export default function VotingPage() {
   if (!gameState) return <div className="page center"><p>Loading...</p></div>;
 
   const isDiscreet = gameState.settings?.discreet_mode || localDiscreet;
+  const isAnonymous = gameState.settings?.anonymous_role === true;
 
   const votingTime = gameState.settings?.voting_time || 60;
   const remaining = useCountdown(
@@ -56,13 +57,14 @@ export default function VotingPage() {
 
   const me = gameState.players.find((p) => p.id === playerInfo.id);
   const isBanned = me?.revealed === true || me?.eliminated === true;
+  const isWordRevealer = me?.word_revealer === true;
   const hasVoted = me?.vote !== null && me?.vote !== undefined;
-  // Eligible voters: not revealed, not eliminated
-  const eligibleVoters = gameState.players.filter((p) => !p.revealed && !p.eliminated);
+  // Eligible voters: not revealed, not eliminated, not kicked, not left
+  const eligibleVoters = gameState.players.filter((p) => !p.revealed && !p.eliminated && !p.kicked && !p.left);
   const votesCast = eligibleVoters.filter((p) => p.vote !== null && p.vote !== undefined).length;
   const totalVoters = eligibleVoters.length;
-  // Voteable targets: not revealed, not eliminated
-  const voteTargets = gameState.players.filter((p) => !p.revealed && !p.eliminated);
+  // Voteable targets: not revealed, not eliminated, not kicked, not left
+  const voteTargets = gameState.players.filter((p) => !p.revealed && !p.eliminated && !p.kicked && !p.left);
 
   function handleVote(targetId) {
     if (isBanned || hasVoted) return;
@@ -94,17 +96,19 @@ export default function VotingPage() {
       </div>
 
       <div
-        className="voting-role-banner"
+        className="voting-header-card card"
         onPointerDown={() => isDiscreet && setRevealing(true)}
         onPointerUp={() => setRevealing(false)}
         onPointerLeave={() => setRevealing(false)}
         style={isDiscreet ? { userSelect: "none", touchAction: "none" } : undefined}
       >
         {isDiscreet && !revealing ? (
-          <div className="discreet-card compact">
-            <button className="btn reveal-hold-btn" tabIndex={-1}>
-              <Eye size={16} /> Hold to reveal your word
-            </button>
+          <button className="btn reveal-hold-btn" tabIndex={-1}>
+            <Eye size={16} /> Hold to reveal your word
+          </button>
+        ) : isAnonymous ? (
+          <div className="voting-role-info">
+            <span className="voting-role-word">{gameState.word}</span>
           </div>
         ) : gameState.is_imposter ? (
           <div className="voting-role-info imposter">
@@ -117,16 +121,16 @@ export default function VotingPage() {
             <span className="voting-role-word">{gameState.word}</span>
           </div>
         )}
-      </div>
-
-      <div className="page-heading">
-        <h1>Vote</h1>
-        <p>Who do you think is the imposter?</p>
-        {remaining !== null && (
-          <div className={`countdown-badge countdown-inline${remaining <= 10 ? " countdown-urgent" : ""}`}>
-            {remaining}s
-          </div>
-        )}
+        <div className="voting-header-divider" />
+        <div className="page-heading" style={{ marginTop: 0 }}>
+          <h1>Vote</h1>
+          <p>Who do you think is the imposter?</p>
+          {remaining !== null && (
+            <div className={`countdown-badge countdown-inline${remaining <= 10 ? " countdown-urgent" : ""}`}>
+              {remaining}s
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="vote-progress">
@@ -158,17 +162,31 @@ export default function VotingPage() {
                   {player.is_host && (
                     <span className="badge badge-host">Host</span>
                   )}
-                  {!player.connected && (
+                  {player.kicked ? (
+                    <span className="badge badge-kicked">Kicked</span>
+                  ) : player.left ? (
+                    <span className="badge badge-left">Left</span>
+                  ) : !player.connected ? (
                     <span className="badge badge-disconnected">Disconnected</span>
+                  ) : null}
+                  {player.word_revealer && (
+                    <span className="badge badge-word-revealer">Vote won't count</span>
                   )}
-                  {voteStatus === "skip" && (
+                  {!player.kicked && !player.left && voteStatus === "skip" && (
                     <span className="badge badge-skip">Skipped</span>
                   )}
-                  {voteStatus === "voted" && (
+                  {!player.kicked && !player.left && voteStatus === "voted" && (
                     <span className="badge badge-voted">Voted</span>
                   )}
                 </span>
-                {isHost && player.id !== playerInfo.id && (
+                {(player.kicked || player.left) && (
+                  <span className="vote-excluded-note">
+                    {player.vote !== null && player.vote !== undefined
+                      ? "vote counted"
+                      : "vote won't be counted"}
+                  </span>
+                )}
+                {isHost && player.id !== playerInfo.id && !player.kicked && !player.left && (
                   <button
                     className="kick-btn"
                     title="Kick player"
@@ -191,7 +209,12 @@ export default function VotingPage() {
 
       {isBanned ? (
         <div className="voted-message">
-          <p>You have been eliminated and cannot vote.</p>
+          {isWordRevealer ? (
+            <p><AlertTriangle size={15} style={{ marginRight: 6, verticalAlign: "middle" }} />
+              You revealed the secret word — you cannot vote. You can watch what's happening.</p>
+          ) : (
+            <p>You have been eliminated and cannot vote.</p>
+          )}
         </div>
       ) : hasVoted ? (
         <div className="voted-message">
@@ -221,7 +244,13 @@ export default function VotingPage() {
                   <span className="vote-player-name">{player.name}</span>
                   {isSelf && <span className="vote-self-hint">(you)</span>}
                   {player.is_host && <span className="badge badge-host">Host</span>}
-                  {!player.connected && <span className="badge badge-disconnected">Disconnected</span>}
+                  {player.kicked ? (
+                    <span className="badge badge-kicked">Kicked</span>
+                  ) : player.left ? (
+                    <span className="badge badge-left">Left</span>
+                  ) : !player.connected ? (
+                    <span className="badge badge-disconnected">Disconnected</span>
+                  ) : null}
                 </button>
               );
             })}

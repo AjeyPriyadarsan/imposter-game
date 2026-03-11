@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Backend
 ```bash
 cd backend
-source venv/bin/activate
+source impostervenv/bin/activate   # venv is named impostervenv, not venv
 uvicorn main:app --reload       # dev server on :8000
 python3 -c "from main import app; print('OK')"  # quick import check
 ```
@@ -94,3 +94,15 @@ VITE_WS_URL=ws://localhost:8000
 - Self-voting blocked server-side; single-word clue enforced client + server
 - Host transfers automatically on disconnect in lobby
 - WebSocket connections are in-memory only (not Redis) — single-process only
+- Timers: asyncio tasks in `_timers` dict; thinking timer auto-skips turn, voting timer force-ends phase
+
+### UI
+- Icons: `lucide-react` (Copy, Check, Settings, Users, Timer, Vote, Layers, UserX, Play, etc.)
+- No CSS framework — custom classes: `.page`, `.card`, `.btn`, `.badge`
+- Avatar colors array: `["#7c3aed", "#ec4899", "#f59e0b", ...]`
+
+### Settings Constraints
+- `thinking_time`: [10, 20, 30, 40, 50, 60]
+- `voting_time`: [30, 45, 60, 90, 120]
+- `num_rounds`: [1, 2, 3]
+- `num_imposters`: max = min(3, (num_players-1)//2)
