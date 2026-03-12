@@ -165,6 +165,7 @@ body {
 .alert {
   width: 100%;
   max-width: 440px;
+  margin: 0 auto;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   font-size: 13px;
