@@ -55,8 +55,23 @@ export default function AdminPage() {
   useEffect(() => {
     if (!authed || !token) return;
     fetchRooms(token);
-    const interval = setInterval(() => fetchRooms(token), 5000);
-    return () => clearInterval(interval);
+
+    let interval = setInterval(() => fetchRooms(token), 5000);
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        clearInterval(interval);
+      } else {
+        fetchRooms(token);
+        interval = setInterval(() => fetchRooms(token), 5000);
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [authed, token, fetchRooms]);
 
   function handleLogin(e) {

@@ -193,6 +193,7 @@ def admin_get_rooms(authorization: str = Header(None)):
                 "players": players,
                 "created_at": room.get("created_at"),
             })
+    rooms.sort(key=lambda r: r.get("created_at") or 0, reverse=True)
     return {"rooms": rooms, "total": len(rooms)}
 
 
