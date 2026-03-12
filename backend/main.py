@@ -29,7 +29,7 @@ manager = RoomManager(redis_client=redis_client)
 _timers: dict[str, asyncio.Task] = {}
 _idle_timers: dict[str, asyncio.Task] = {}
 
-LOBBY_IDLE_SECONDS = 600  # 10 minutes total idle
+LOBBY_IDLE_SECONDS = 1200  # 20 minutes total idle
 LOBBY_WARN_SECONDS = 300  # show warning in last 5 minutes
 
 
@@ -110,8 +110,8 @@ async def _voting_timer(room_id: str, seconds: int):
 
 
 async def _round_end_timer(room_id: str):
-    """Auto-advance to next round 30s after round_end state."""
-    await asyncio.sleep(30)
+    """Auto-advance to next round 60s after round_end state."""
+    await asyncio.sleep(60)
     _timers.pop(room_id, None)
     room = manager._get_room(room_id)
     if not room or room["state"] != "round_end":
@@ -122,14 +122,15 @@ async def _round_end_timer(room_id: str):
 
 
 async def _results_timer(room_id: str):
-    """Auto-return to lobby 30s after results state."""
-    await asyncio.sleep(30)
+    """Auto-return to lobby 300s after results state."""
+    await asyncio.sleep(300)
     _timers.pop(room_id, None)
     room = manager._get_room(room_id)
     if not room or room["state"] != "results":
         return
     manager.play_again(room_id)
     await manager.broadcast(room_id)
+    schedule_idle_timer(room_id)
 
 
 def schedule_post_voting_timer(room_id: str):
@@ -182,7 +183,7 @@ async def create_room(req: CreateRoomRequest):
 
 @app.post("/rooms/{room_id}/join")
 async def join_room(room_id: str, req: JoinRoomRequest):
-    room_id = room_id.upper()
+    room_id = room_id.strip()
     name = req.player_name.strip()
     if not name or len(name) > 20:
         raise HTTPException(status_code=400, detail="Invalid player name")
@@ -196,8 +197,6 @@ async def join_room(room_id: str, req: JoinRoomRequest):
             raise HTTPException(status_code=400, detail="Game already in progress")
         max_p = room.get("settings", {}).get("max_players", 20)
         raise HTTPException(status_code=400, detail=f"Room is full (max {max_p} players)")
-    manager.reset_idle_timer(room_id)
-    schedule_idle_timer(room_id)
     return {"player_id": player_id}
 
 
@@ -214,22 +213,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
 
     await manager.connect(room_id, player_id, websocket)
     manager.set_player_connected(room_id, player_id, True)
-    # Reset idle timer on reconnect/connect to lobby
-    if manager._get_room(room_id) and manager._get_room(room_id)["state"] == "lobby":
-        manager.reset_idle_timer(room_id)
-        schedule_idle_timer(room_id)
     await manager.broadcast(room_id)
 
     try:
         while True:
             data = await websocket.receive_json()
             msg_type = data.get("type")
-
-            # Reset idle timer on any activity while in lobby
-            room = manager._get_room(room_id)
-            if room and room["state"] == "lobby":
-                manager.reset_idle_timer(room_id)
-                schedule_idle_timer(room_id)
 
             if msg_type == "start_game":
                 room = manager._get_room(room_id)
@@ -298,6 +287,14 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                     if manager.next_round(room_id):
                         await manager.broadcast(room_id)
                         schedule_turn_timer(room_id)
+
+            elif msg_type == "end_match":
+                room = manager._get_room(room_id)
+                if room and room["host"] == player_id and room["state"] != "lobby":
+                    cancel_timer(room_id)
+                    if manager.end_match(room_id, player_id):
+                        await manager.broadcast(room_id)
+                        schedule_idle_timer(room_id)
 
             elif msg_type == "play_again":
                 room = manager._get_room(room_id)
