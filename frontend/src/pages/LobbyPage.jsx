@@ -9,6 +9,15 @@ export default function LobbyPage() {
   const [idleSecsLeft, setIdleSecsLeft] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [kickTarget, setKickTarget] = useState(null); // { id, name }
+  const [showHostEndedBanner, setShowHostEndedBanner] = useState(false);
+
+  useEffect(() => {
+    if (gameState?.host_ended) {
+      setShowHostEndedBanner(true);
+      const t = setTimeout(() => setShowHostEndedBanner(false), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [gameState?.host_ended]);
 
   useEffect(() => {
     const expiresAt = gameState?.idle_expires_at;
@@ -82,6 +91,12 @@ export default function LobbyPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
+
+      {showHostEndedBanner && (
+        <div className="alert alert-info host-ended-banner">
+          Host ended the match
+        </div>
+      )}
 
       {idleSecsLeft !== null && (
         <div className="idle-warning">
@@ -275,8 +290,8 @@ export default function LobbyPage() {
             </div>
             <p className="hint" style={{ marginTop: 6 }}>
               {settings.discreet_mode
-                ? "Players' words and roles are hidden until they're voted out. Makes the game harder for imposters to bluff."
-                : "Everyone can see the imposter's word from the start. Easier for imposters to give clues."}
+                ? "For in-person play — role and word are hidden so nearby players can't peek. Hold to reveal on your own screen."
+                : "Role and word are shown openly. Best when players are on separate screens away from each other."}
             </p>
           </div>
 
