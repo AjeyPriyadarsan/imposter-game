@@ -8,7 +8,7 @@ import RoundEndPage from "./pages/RoundEndPage";
 import AdminPage from "./pages/AdminPage";
 
 export default function App() {
-  if (window.location.pathname === "/admin") {
+  if (window.location.pathname === "/ajey") {
     return <AdminPage />;
   }
 
