@@ -1,38 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useGame } from "../context/GameContext";
 import { SkipForward, Scale, Ban, Eye, AlertTriangle } from "lucide-react";
 import ConfirmModal from "../components/ConfirmModal";
+import { useCountdown } from "../hooks/useCountdown";
 
 const AUTO_ADVANCE_DELAY = 60;
 
 export default function RoundEndPage() {
   const { gameState, playerInfo, sendMessage } = useGame();
-  const [countdown, setCountdown] = useState(AUTO_ADVANCE_DELAY);
 
   const totalRounds = gameState?.total_rounds || 1;
   const isMultiRound = totalRounds > 1;
 
-  useEffect(() => {
-    if (!isMultiRound || !gameState?.phase_start_time) return;
-
-    const elapsed = (gameState.server_time || Date.now() / 1000) - gameState.phase_start_time;
-    const initial = Math.max(0, AUTO_ADVANCE_DELAY - Math.floor(elapsed));
-    setCountdown(initial);
-
-    if (initial <= 0) return;
-
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [gameState?.phase_start_time, isMultiRound]);
+  const countdown = useCountdown(
+    isMultiRound ? gameState?.phase_start_time : null,
+    AUTO_ADVANCE_DELAY,
+    gameState?.server_time
+  );
 
   if (!gameState || !gameState.round_end_info) return <div className="page center"><p>Loading...</p></div>;
 

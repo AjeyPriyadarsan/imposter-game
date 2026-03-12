@@ -1,36 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useGame } from "../context/GameContext";
 import { Target, Siren, Scale, ShieldOff, AlertTriangle } from "lucide-react";
 import ConfirmModal from "../components/ConfirmModal";
+import { useCountdown } from "../hooks/useCountdown";
 
 const AUTO_LOBBY_DELAY = 300;
 
 export default function ResultsPage() {
   const { gameState, playerInfo, sendMessage, leaveRoom } = useGame();
-  const [countdown, setCountdown] = useState(AUTO_LOBBY_DELAY);
   const [confirmLeave, setConfirmLeave] = useState(false);
 
-  useEffect(() => {
-    if (!gameState?.phase_start_time) return;
-
-    const elapsed = (gameState.server_time || Date.now() / 1000) - gameState.phase_start_time;
-    const initial = Math.max(0, AUTO_LOBBY_DELAY - Math.floor(elapsed));
-    setCountdown(initial);
-
-    if (initial <= 0) return;
-
-    const interval = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [gameState?.phase_start_time]);
+  const countdown = useCountdown(gameState?.phase_start_time, AUTO_LOBBY_DELAY, gameState?.server_time);
 
   if (!gameState || !gameState.results) return <div className="page center"><p>Loading...</p></div>;
 
@@ -169,7 +149,6 @@ export default function ResultsPage() {
                     ) : (
                       <span className="result-player-clue">{player.clue || "—"}</span>
                     )}
-                  </div>
                   <span className="result-player-badges">
                     {isImposter && <span className="badge badge-imposter">Imposter</span>}
                     {player.eliminated && <span className="badge badge-revealed">Eliminated</span>}
@@ -181,6 +160,7 @@ export default function ResultsPage() {
                       <span className="badge badge-disconnected">Disconnected</span>
                     ) : null}
                   </span>
+                  </div>
                 </div>
               );
             })}

@@ -1,40 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { UserX, Eye, EyeOff, ShieldAlert, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useGame } from "../context/GameContext";
 import ConfirmModal from "../components/ConfirmModal";
-
-function useCountdown(startTime, duration, serverTime) {
-  const [remaining, setRemaining] = useState(null);
-  const offsetRef = useRef(0);
-
-  useEffect(() => {
-    if (!startTime || !duration || !serverTime) {
-      setRemaining(null);
-      return;
-    }
-    offsetRef.current = serverTime - Date.now() / 1000;
-  }, [serverTime, startTime, duration]);
-
-  useEffect(() => {
-    if (!startTime || !duration) {
-      setRemaining(null);
-      return;
-    }
-
-    function tick() {
-      const now = Date.now() / 1000 + offsetRef.current;
-      const elapsed = now - startTime;
-      const left = Math.max(0, Math.ceil(duration - elapsed));
-      setRemaining(left);
-    }
-
-    tick();
-    const id = setInterval(tick, 250);
-    return () => clearInterval(id);
-  }, [startTime, duration]);
-
-  return remaining;
-}
+import { useCountdown } from "../hooks/useCountdown";
 
 export default function VotingPage() {
   const { gameState, playerInfo, sendMessage, leaveRoom, localDiscreet, setLocalDiscreet } = useGame();
