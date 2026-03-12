@@ -40,6 +40,7 @@ export default function VotingPage() {
   const { gameState, playerInfo, sendMessage, leaveRoom, localDiscreet, setLocalDiscreet } = useGame();
   const isHost = gameState?.host === playerInfo?.id;
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmEndMatch, setConfirmEndMatch] = useState(false);
   const [kickTarget, setKickTarget] = useState(null);
   const [revealing, setRevealing] = useState(false);
 
@@ -84,6 +85,9 @@ export default function VotingPage() {
     <div className="page center">
       <div className="top-actions">
         <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
+        {isHost && (
+          <button className="end-match-btn" onClick={() => setConfirmEndMatch(true)}>End Match</button>
+        )}
         {!gameState.settings?.discreet_mode && (
           <button
             className={`discreet-toggle${localDiscreet ? " active" : ""}`}
@@ -119,6 +123,12 @@ export default function VotingPage() {
           <div className="voting-role-info innocent">
             <span className="voting-role-label"><ShieldCheck size={16} style={{ marginRight: 4, verticalAlign: "middle" }} /> Innocent</span>
             <span className="voting-role-word">{gameState.word}</span>
+          </div>
+        )}
+        {!isAnonymous && gameState.remaining_imposters !== undefined && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#94a3b8', marginTop: '8px', justifyContent: 'center' }}>
+            <ShieldAlert size={14} />
+            <span>{gameState.remaining_imposters} imposter{gameState.remaining_imposters !== 1 ? 's' : ''} remaining</span>
           </div>
         )}
         <div className="voting-header-divider" />
@@ -283,6 +293,20 @@ export default function VotingPage() {
             setKickTarget(null);
           }}
           onCancel={() => setKickTarget(null)}
+        />
+      )}
+
+      {confirmEndMatch && (
+        <ConfirmModal
+          title="End Match?"
+          message="Are you sure you want to end the match? Everyone will return to the lobby."
+          confirmLabel="End Match"
+          confirmDanger
+          onConfirm={() => {
+            sendMessage({ type: "end_match" });
+            setConfirmEndMatch(false);
+          }}
+          onCancel={() => setConfirmEndMatch(false)}
         />
       )}
     </div>

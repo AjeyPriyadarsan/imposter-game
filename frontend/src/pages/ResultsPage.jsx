@@ -3,7 +3,7 @@ import { useGame } from "../context/GameContext";
 import { Target, Siren, Scale, ShieldOff, AlertTriangle } from "lucide-react";
 import ConfirmModal from "../components/ConfirmModal";
 
-const AUTO_LOBBY_DELAY = 30;
+const AUTO_LOBBY_DELAY = 300;
 
 export default function ResultsPage() {
   const { gameState, playerInfo, sendMessage, leaveRoom } = useGame();
@@ -54,15 +54,31 @@ export default function ResultsPage() {
     iWon = iWasImposter; // imposter wins
   }
 
+  const AVATAR_COLORS = [
+    "#7c3aed", "#ec4899", "#f59e0b", "#10b981", "#3b82f6",
+    "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#84cc16",
+    "#e11d48", "#0ea5e9", "#a855f7", "#14b8a6", "#eab308",
+    "#6366f1", "#22c55e", "#fb7185", "#38bdf8", "#fb923c",
+  ];
+
   const orderedPlayers = gameState.clue_order
     .map((id) => gameState.players.find((p) => p.id === id))
     .filter(Boolean);
 
+  // Build a stable color index map keyed by player id
+  const playerColorMap = {};
+  orderedPlayers.forEach((p, idx) => {
+    playerColorMap[p.id] = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+  });
+
   const votedByMap = {};
+  const skippedByList = [];
   gameState.players.forEach((voter) => {
     if (voter.vote && voter.vote !== "skip") {
       if (!votedByMap[voter.vote]) votedByMap[voter.vote] = [];
       votedByMap[voter.vote].push(voter);
+    } else if (voter.vote === "skip") {
+      skippedByList.push(voter);
     }
   });
 
@@ -132,64 +148,96 @@ export default function ResultsPage() {
           )}
         </div>
 
-        <div className="result-card card">
-          <h3>Clues &amp; Votes</h3>
-          <div className="clue-list">
+      </div>
+
+      <div className="results-bottom-row">
+        <div className="result-section-full card">
+          <h3>Players &amp; Clues</h3>
+          <div className="result-player-list">
             {orderedPlayers.map((player, idx) => {
               const isImposter = results.imposters.includes(player.id);
-              const voteCount = results.vote_counts?.[player.id] || 0;
-              const voterNames = votedByMap[player.id]?.map((v) => v.name) || [];
               return (
-                <div
-                  key={player.id}
-                  className={`clue-row result-clue-row ${isImposter ? "imposter-row" : ""}`}
-                >
-                  <div className="result-row-top">
-                    <span className="clue-order-num">{idx + 1}</span>
+                <div key={player.id} className={`result-player-row ${isImposter ? "imposter-row" : ""}`}>
+                  <span className="clue-order-num">{idx + 1}</span>
+                  <span className="result-player-avatar" style={{ background: playerColorMap[player.id] }}>
+                    {player.name[0].toUpperCase()}
+                  </span>
+                  <div className="result-player-info">
                     <span className="clue-player-name">{player.name}</span>
-                    <span className="badge-group">
-                      {isImposter && <span className="badge badge-imposter">Imposter</span>}
-                      {player.revealed && <span className="badge badge-revealed">Revealed</span>}
-                      {player.eliminated && <span className="badge badge-revealed">Eliminated</span>}
-                      {player.id === playerInfo.id && <span className="badge badge-you">You</span>}
-                      {player.kicked ? (
-                        <span className="badge badge-kicked">Kicked</span>
-                      ) : !player.connected ? (
-                        <span className="badge badge-disconnected">Disconnected</span>
-                      ) : null}
-                    </span>
-                  </div>
-                  <div className="result-row-bottom">
                     {player.clue === "__word_revealed__" ? (
-                      <span className="clue-revealed"><AlertTriangle size={13} /> Typed the word!</span>
+                      <span className="result-player-clue clue-revealed"><AlertTriangle size={11} /> Typed the word!</span>
                     ) : (
-                      <span className="clue-word">{player.clue || "—"}</span>
-                    )}
-                    {voterNames.length > 0 && (
-                      <span className="voted-for-tag">voted by: {voterNames.join(", ")}</span>
-                    )}
-                    {voteCount > 0 && (
-                      <span className="vote-tally">{voteCount} vote{voteCount !== 1 ? "s" : ""}</span>
+                      <span className="result-player-clue">{player.clue || "—"}</span>
                     )}
                   </div>
+                  <span className="result-player-badges">
+                    {isImposter && <span className="badge badge-imposter">Imposter</span>}
+                    {player.eliminated && <span className="badge badge-revealed">Eliminated</span>}
+                    {player.id === playerInfo.id && <span className="badge badge-you">You</span>}
+                    {player.id === gameState.host && <span className="badge badge-host">Host</span>}
+                    {player.kicked ? (
+                      <span className="badge badge-kicked">Kicked</span>
+                    ) : !player.connected ? (
+                      <span className="badge badge-disconnected">Disconnected</span>
+                    ) : null}
+                  </span>
                 </div>
               );
             })}
-            {(results.skip_count || 0) > 0 && (
-              <div className="clue-row result-clue-row">
-                <div className="result-row-top">
-                  <span className="clue-order-num">—</span>
-                  <span className="clue-player-name" style={{ color: "var(--text-muted, #9ca3af)" }}>
-                    Skipped / No vote
-                  </span>
-                </div>
-                <div className="result-row-bottom">
-                  <span className="vote-tally">
-                    {results.skip_count} skip{results.skip_count !== 1 ? "s" : ""}
-                  </span>
-                </div>
+          </div>
+        </div>
+        <div className="result-section-full card" style={{ display: "flex", flexDirection: "column" }}>
+          <h3>Vote Breakdown</h3>
+          <div className="vote-table" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <div className="vote-table-header">
+              <span>Player</span>
+              <span>Votes</span>
+              <span>Voted by</span>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+              {[...orderedPlayers]
+                .sort((a, b) => (results.vote_counts?.[b.id] || 0) - (results.vote_counts?.[a.id] || 0))
+                .map((player) => {
+                  const voteCount = results.vote_counts?.[player.id] || 0;
+                  const voters = votedByMap[player.id] || [];
+                  return (
+                    <div key={player.id} className="vote-table-row">
+                      <span className="vote-player-name">{player.name}</span>
+                      <span className="vote-count-pill">{voteCount}</span>
+                      <span className="vote-from-avatars">
+                        {voters.map((v) => (
+                          <span
+                            key={v.id}
+                            className="vote-voter-avatar"
+                            style={{ background: playerColorMap[v.id] || "#7c3aed" }}
+                            title={v.name}
+                          >
+                            {v.name[0].toUpperCase()}
+                          </span>
+                        ))}
+                      </span>
+                    </div>
+                  );
+                })}
+              <div className="vote-table-row vote-skip-row">
+                <span className="vote-player-name" style={{ color: "var(--text-muted)", overflow: "visible", whiteSpace: "normal" }}>Skipped / No vote</span>
+                <span className="vote-count-pill vote-count-skip">{results.skip_count || 0}</span>
+                <span className="vote-from-avatars">
+                  {skippedByList.length > 0
+                    ? skippedByList.map((v) => (
+                        <span
+                          key={v.id}
+                          className="vote-voter-avatar"
+                          style={{ background: playerColorMap[v.id] || "#7c3aed" }}
+                          title={v.name}
+                        >
+                          {v.name[0].toUpperCase()}
+                        </span>
+                      ))
+                    : <span style={{ color: "var(--text-muted)" }}>—</span>}
+                </span>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
