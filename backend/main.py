@@ -171,7 +171,7 @@ class JoinRoomRequest(BaseModel):
     player_name: str
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health():
     return {"status": "ok"}
 

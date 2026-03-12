@@ -1,6 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useGame } from "../context/GameContext";
-import { Plus, LogIn, ArrowLeft, Gamepad2, Fingerprint } from "lucide-react";
+import { Plus, LogIn, ArrowLeft, Gamepad2, Fingerprint, RefreshCw } from "lucide-react";
+
+const CREATE_STEPS = [
+  { delay: 0,    text: "Waking up server…" },
+  { delay: 5000, text: "Starting services…" },
+  { delay: 10000, text: "Creating your room…" },
+  { delay: 15000, text: "Almost there…" },
+];
+
+const JOIN_STEPS = [
+  { delay: 0,    text: "Connecting…" },
+  { delay: 5000, text: "Joining room…" },
+  { delay: 10000, text: "Almost there…" },
+];
 
 export default function HomePage() {
   const { createRoom, joinRoom, error, pendingRoomCode } = useGame();
@@ -10,6 +23,9 @@ export default function HomePage() {
   const [roomCode, setRoomCode] = useState("");
   const [mode, setMode] = useState(null); // "create" | "join"
   const [loading, setLoading] = useState(false);
+  const [loadStatus, setLoadStatus] = useState(null); // null | 'loading' | 'failed'
+  const [loadMsg, setLoadMsg] = useState("");
+  const timersRef = useRef([]);
 
   function handleNameChange(e) {
     const val = e.target.value;
@@ -35,21 +51,53 @@ export default function HomePage() {
     }
   }, [pendingRoomCode]);
 
+  function startLoadingMessages(steps) {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+    steps.forEach(({ delay, text }) => {
+      const t = setTimeout(() => setLoadMsg(text), delay);
+      timersRef.current.push(t);
+    });
+  }
+
+  function clearLoadingTimers() {
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+  }
+
   async function handleCreate(e) {
     e?.preventDefault();
     if (!name.trim()) return;
     setMode("create");
-    setLoading(true);
-    await createRoom(name.trim());
-    setLoading(false);
+    setLoadStatus("loading");
+    setLoadMsg(CREATE_STEPS[0].text);
+    startLoadingMessages(CREATE_STEPS);
+    const result = await createRoom(name.trim());
+    clearLoadingTimers();
+    if (!result) {
+      setLoadStatus("failed");
+      setLoadMsg("Failed to connect. Server may be starting up.");
+    }
+    // on success, GameContext navigates away — no cleanup needed
   }
 
   async function handleJoin(e) {
     e.preventDefault();
     if (!name.trim() || !roomCode.trim()) return;
     setLoading(true);
+    setLoadStatus("loading");
+    setLoadMsg(JOIN_STEPS[0].text);
+    startLoadingMessages(JOIN_STEPS);
     await joinRoom(roomCode.trim(), name.trim());
+    clearLoadingTimers();
     setLoading(false);
+    setLoadStatus(null);
+  }
+
+  function handleRetry() {
+    setLoadStatus(null);
+    setLoadMsg("");
+    setMode(null);
   }
 
   function handleBack() {
@@ -71,7 +119,33 @@ export default function HomePage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      {!mode && (
+      {loadStatus === "loading" && (
+        <div className="card room-loading-card" style={{ width: "100%", alignItems: "center", gap: 20, padding: "36px 24px" }}>
+          <div className="room-spinner" />
+          <div style={{ textAlign: "center" }}>
+            <div key={loadMsg} className="room-loading-msg">{loadMsg}</div>
+            <div style={{ color: "var(--text-muted)", fontSize: 12, marginTop: 6 }}>
+              First launch may take up to 30 seconds
+            </div>
+          </div>
+        </div>
+      )}
+
+      {loadStatus === "failed" && (
+        <div className="card" style={{ width: "100%", alignItems: "center", gap: 16, padding: "32px 24px", textAlign: "center" }}>
+          <div style={{ fontSize: 36 }}>⚠️</div>
+          <div>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Could not reach server</div>
+            <div style={{ color: "var(--text-muted)", fontSize: 13 }}>{loadMsg}</div>
+          </div>
+          <button className="btn btn-primary" onClick={handleRetry}>
+            <RefreshCw size={15} />
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {!loadStatus && !mode && (
         <div className="card" style={{ width: "100%" }}>
           <input
             className="input"
@@ -104,7 +178,7 @@ export default function HomePage() {
         </div>
       )}
 
-{mode === "join" && (
+      {!loadStatus && mode === "join" && (
         <form className="card" style={{ width: "100%" }} onSubmit={handleJoin}>
           <input
             className="input"
@@ -146,7 +220,7 @@ export default function HomePage() {
         </form>
       )}
 
-      {!mode && (
+      {!loadStatus && !mode && (
         <div className="how-to-play">
           <h3>
             <Gamepad2 size={13} />
