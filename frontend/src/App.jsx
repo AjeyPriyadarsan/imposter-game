@@ -5,8 +5,13 @@ import GamePage from "./pages/GamePage";
 import VotingPage from "./pages/VotingPage";
 import ResultsPage from "./pages/ResultsPage";
 import RoundEndPage from "./pages/RoundEndPage";
+import AdminPage from "./pages/AdminPage";
 
 export default function App() {
+  if (window.location.pathname === "/ajey") {
+    return <AdminPage />;
+  }
+
   const { gameState, playerInfo, reconnecting } = useGame();
 
   if (reconnecting) return <div className="page center"><p>Reconnecting...</p></div>;
