@@ -1289,8 +1289,7 @@ body {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  flex-shrink: 0;
+  justify-content: flex-start;
 }
 
 .vote-table {
