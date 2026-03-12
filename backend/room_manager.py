@@ -812,6 +812,7 @@ class RoomManager:
         # Fetch room from Redis once, reuse for all players
         room = self._get_room(room_id)
         if not room:
+            print(f"[broadcast] room {room_id} not found in Redis")
             return
         dead = []
         for pid, ws in self.connections[room_id].items():
@@ -819,7 +820,8 @@ class RoomManager:
             if state:
                 try:
                     await ws.send_json({"type": "state_update", "payload": state})
-                except Exception:
+                except Exception as e:
+                    print(f"[broadcast] send failed for player {pid} in room {room_id}: {e}")
                     dead.append(pid)
         for pid in dead:
             self.connections[room_id].pop(pid, None)

@@ -44,6 +44,8 @@ export function GameProvider({ children }) {
       let opened = false;
       let kicked = false;
       let roomClosed = false;
+      let pingInterval = null;
+      let keepAliveInterval = null;
       const ws = new WebSocket(`${WS_URL}/ws/${roomId}/${playerId}`);
 
       ws.onmessage = (event) => {
@@ -51,6 +53,8 @@ export function GameProvider({ children }) {
         if (msg.type === "state_update") {
           gameStateRef.current = msg.payload;
           setGameState(msg.payload);
+        } else if (msg.type === "pong") {
+          // keep-alive response — no action needed
         } else if (msg.type === "error") {
           setError(msg.payload.message);
           setTimeout(() => setError(null), 3000);
@@ -80,9 +84,19 @@ export function GameProvider({ children }) {
       ws.onopen = () => {
         opened = true;
         if (!resolved) { resolved = true; resolve(true); }
+        pingInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "ping" }));
+          }
+        }, 25000);
+        keepAliveInterval = setInterval(() => {
+          fetch(`${API_URL}/health`).catch(() => {});
+        }, 10 * 60 * 1000);
       };
 
       ws.onclose = (e) => {
+        clearInterval(pingInterval);
+        clearInterval(keepAliveInterval);
         if (!resolved) { resolved = true; resolve(false); }
         else if (opened && !kicked && !roomClosed) {
           if (e.code === 4008) {
@@ -114,7 +128,16 @@ export function GameProvider({ children }) {
               setError("Room closed.");
               setTimeout(() => setError(null), 5000);
             } else {
-              setError("Connection lost. Please refresh.");
+              // Auto-reconnect once before showing error
+              setReconnecting(true);
+              setTimeout(() => {
+                connectWs(roomId, playerId).then((success) => {
+                  setReconnecting(false);
+                  if (!success) {
+                    setError("Connection lost. Please refresh.");
+                  }
+                });
+              }, 3000);
             }
           }
         }
