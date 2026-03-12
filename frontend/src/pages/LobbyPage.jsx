@@ -273,6 +273,11 @@ export default function LobbyPage() {
                 onClick={() => updateSetting("discreet_mode", true)}
               >On</button>
             </div>
+            <p className="hint" style={{ marginTop: 6 }}>
+              {settings.discreet_mode
+                ? "Players' words and roles are hidden until they're voted out. Makes the game harder for imposters to bluff."
+                : "Everyone can see the imposter's word from the start. Easier for imposters to give clues."}
+            </p>
           </div>
 
           <div className="setting-block">
@@ -301,9 +306,9 @@ export default function LobbyPage() {
               ))}
             </div>
             <p className="hint" style={{ marginTop: 6 }}>
-              {(settings.word_similarity ?? "similar") === "similar" && "Imposter gets a very close word (e.g. forest → jungle)"}
-              {(settings.word_similarity ?? "similar") === "somewhat" && "Imposter gets a loosely related word (e.g. forest → trees)"}
-              {(settings.word_similarity ?? "similar") === "random" && "Imposter gets a totally unrelated word (e.g. forest → icecream)"}
+              {(settings.word_similarity ?? "similar") === "similar" && "Imposter gets a very similar word (e.g. pizza → lasagna). Easiest for imposters—the words are too close to tell apart."}
+              {(settings.word_similarity ?? "similar") === "somewhat" && "Imposter gets a loosely related word (e.g. pizza → bread). Medium difficulty—some connection but clearly different."}
+              {(settings.word_similarity ?? "similar") === "random" && "Imposter gets a completely random word (e.g. pizza → volcano). Hardest for imposters—no connection means easy to spot."}
             </p>
           </div>
 
@@ -319,7 +324,9 @@ export default function LobbyPage() {
                 onClick={() => updateSetting("anonymous_role", true)}>On</button>
             </div>
             <p className="hint" style={{ marginTop: 6 }}>
-              Nobody sees their role until someone is eliminated.
+              {settings.anonymous_role
+                ? "Players see their word but don't know their role. Role revealed when eliminated or at match end."
+                : "Players know if they're impostor or innocent from the start. Everyone can see remaining imposters."}
             </p>
           </div>
 
@@ -336,8 +343,8 @@ export default function LobbyPage() {
             </div>
             <p className="hint" style={{ marginTop: 6 }}>
               {settings.anonymous_voter !== false
-                ? "Vote counts shown each round — who voted whom revealed only at final results."
-                : "Who voted for whom is revealed after every round."}
+                ? "Vote tallies are shown each round, but who voted for whom stays secret until the final results."
+                : "Everyone sees each vote as it happens. Voting patterns are visible immediately."}
             </p>
           </div>
           </div>
