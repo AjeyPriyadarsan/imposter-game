@@ -149,7 +149,6 @@ export default function ResultsPage() {
                     ) : (
                       <span className="result-player-clue">{player.clue || "—"}</span>
                     )}
-                  </div>
                   <span className="result-player-badges">
                     {isImposter && <span className="badge badge-imposter">Imposter</span>}
                     {player.eliminated && <span className="badge badge-revealed">Eliminated</span>}
@@ -161,6 +160,7 @@ export default function ResultsPage() {
                       <span className="badge badge-disconnected">Disconnected</span>
                     ) : null}
                   </span>
+                  </div>
                 </div>
               );
             })}

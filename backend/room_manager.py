@@ -321,7 +321,7 @@ class RoomManager:
             room["current_turn"] += 1
 
             # Check parity immediately after marking revealed
-            win_reason = self._check_imposter_win_condition(room)
+            win_reason = self._check_imposter_win_condition(room, parity_only=True)
             if win_reason:
                 room["outcome"] = "imposter_win"
                 room["win_reason"] = win_reason
@@ -391,7 +391,7 @@ class RoomManager:
         active_innocents = len(active) - active_imposters
         return active_imposters >= active_innocents
 
-    def _check_imposter_win_condition(self, room: dict) -> Optional[str]:
+    def _check_imposter_win_condition(self, room: dict, parity_only: bool = False) -> Optional[str]:
         """Returns a win-reason string if imposters win right now, else None."""
         players = room["players"]
         imposters = set(room["imposters"])
@@ -407,6 +407,10 @@ class RoomManager:
                 f"Imposters ({active_imposters}) now outnumber the remaining "
                 f"innocents ({active_innocents})"
             )
+
+        # Skip rounds-remaining check during clue phase — voting hasn't happened yet
+        if parity_only:
+            return None
 
         # Rounds remaining: fewer rounds left than active imposters
         remaining_rounds = room.get("total_rounds", 1) - room.get("current_round", 1)
