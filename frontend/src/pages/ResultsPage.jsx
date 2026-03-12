@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useGame } from "../context/GameContext";
 import { Target, Siren, Scale, ShieldOff, AlertTriangle } from "lucide-react";
 import ConfirmModal from "../components/ConfirmModal";
+import RoomCodeChip from "../components/RoomCodeChip";
 import { useCountdown } from "../hooks/useCountdown";
 
 const AUTO_LOBBY_DELAY = 300;
@@ -9,6 +10,7 @@ const AUTO_LOBBY_DELAY = 300;
 export default function ResultsPage() {
   const { gameState, playerInfo, sendMessage, leaveRoom } = useGame();
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmEndMatch, setConfirmEndMatch] = useState(false);
 
   const countdown = useCountdown(gameState?.phase_start_time, AUTO_LOBBY_DELAY, gameState?.server_time);
 
@@ -88,7 +90,10 @@ export default function ResultsPage() {
 
   return (
     <div className="page center">
-      <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
+      <div className="top-actions" style={{ width: "100%" }}>
+        <RoomCodeChip roomId={playerInfo?.roomId} />
+        <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
+      </div>
       {totalRounds > 1 && (
         <div className="round-indicator">Round {currentRound} of {totalRounds}</div>
       )}
@@ -228,6 +233,7 @@ export default function ResultsPage() {
             <button className="btn btn-secondary" onClick={handlePlayAgain}>
               Start New Match Now
             </button>
+            <button className="end-match-btn" onClick={() => setConfirmEndMatch(true)}>End Match</button>
             <p className="hint">Returning to lobby in {countdown}s...</p>
           </>
         ) : (
@@ -243,6 +249,20 @@ export default function ResultsPage() {
           confirmDanger
           onConfirm={leaveRoom}
           onCancel={() => setConfirmLeave(false)}
+        />
+      )}
+
+      {confirmEndMatch && (
+        <ConfirmModal
+          title="End Match?"
+          message="Return everyone to the lobby and end the current match?"
+          confirmLabel="End Match"
+          confirmDanger
+          onConfirm={() => {
+            sendMessage({ type: "end_match" });
+            setConfirmEndMatch(false);
+          }}
+          onCancel={() => setConfirmEndMatch(false)}
         />
       )}
     </div>
