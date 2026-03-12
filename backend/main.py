@@ -171,6 +171,11 @@ class JoinRoomRequest(BaseModel):
     player_name: str
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 @app.post("/rooms")
 async def create_room(req: CreateRoomRequest):
     name = req.player_name.strip()
@@ -389,6 +394,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                                 if manager.check_voting_complete(room_id):
                                     cancel_timer(room_id)
                             await manager.broadcast(room_id)
+
+            elif msg_type == "ping":
+                await websocket.send_json({"type": "pong"})
 
             elif msg_type == "leave_game":
                 room = manager._get_room(room_id)
