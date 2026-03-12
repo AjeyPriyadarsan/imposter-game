@@ -73,6 +73,7 @@ class RoomManager:
                 "anonymous_voter": False,
             },
             "idle_expires_at": time.time() + 1200,
+            "created_at": time.time(),
         }
         self._save_room(room)
         self.connections[room_id] = {}
