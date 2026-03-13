@@ -1,9 +1,10 @@
 import os
+import json
 import asyncio
 import time
 import redis
 from dotenv import load_dotenv
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from room_manager import RoomManager
@@ -24,6 +25,7 @@ app.add_middleware(
 redis_url = os.environ.get("REDIS_URL", "redis://localhost:6380")
 redis_client = redis.from_url(redis_url, decode_responses=True)
 manager = RoomManager(redis_client=redis_client)
+ADMIN_SECRET = os.environ.get("ADMIN_SECRET", "")
 
 # Timer management: room_id -> asyncio.Task
 _timers: dict[str, asyncio.Task] = {}
@@ -161,6 +163,72 @@ def schedule_turn_timer(room_id: str):
         _timers[room_id] = asyncio.create_task(
             _voting_timer(room_id, seconds)
         )
+
+
+@app.get("/admin/rooms")
+def admin_get_rooms(authorization: str = Header(None)):
+    token = (authorization or "").removeprefix("Bearer ")
+    if not ADMIN_SECRET or token != ADMIN_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    keys = redis_client.keys("room:*")
+    rooms = []
+    for key in keys:
+        data = redis_client.get(key)
+        if data:
+            room = json.loads(data)
+            players = [
+                {"id": pid, "name": p["name"], "connected": p.get("connected", False),
+                 "eliminated": p.get("eliminated", False), "is_imposter": pid in room.get("imposters", [])}
+                for pid, p in room.get("players", {}).items()
+            ]
+            rooms.append({
+                "id": room["id"],
+                "state": room["state"],
+                "word": room.get("word"),
+                "imposter_word": room.get("imposter_word"),
+                "current_round": room.get("current_round", 0),
+                "total_rounds": room.get("total_rounds", 0),
+                "settings": room.get("settings", {}),
+                "players": players,
+                "created_at": room.get("created_at"),
+            })
+    rooms.sort(key=lambda r: r.get("created_at") or 0, reverse=True)
+    return {"rooms": rooms, "total": len(rooms)}
+
+
+@app.delete("/admin/rooms/{room_id}")
+async def admin_delete_room(room_id: str, authorization: str = Header(None)):
+    token = (authorization or "").removeprefix("Bearer ")
+    if not ADMIN_SECRET or token != ADMIN_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    room = manager._get_room(room_id)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+
+    cancel_timer(room_id)
+    cancel_idle_timer(room_id)
+
+    connections = dict(manager.connections.get(room_id, {}))
+    for pid, ws in connections.items():
+        try:
+            await ws.send_json({
+                "type": "room_closed",
+                "payload": {"message": "Room closed by admin"}
+            })
+        except Exception:
+            pass
+    await asyncio.sleep(0.3)
+    for pid, ws in connections.items():
+        try:
+            await ws.close()
+        except Exception:
+            pass
+
+    manager._delete_room(room_id)
+    manager.connections.pop(room_id, None)
+    return {"ok": True, "deleted": room_id}
 
 
 class CreateRoomRequest(BaseModel):

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { UserX, Eye, EyeOff, ShieldAlert, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useGame } from "../context/GameContext";
 import ConfirmModal from "../components/ConfirmModal";
+import RoomCodeChip from "../components/RoomCodeChip";
 import { useCountdown } from "../hooks/useCountdown";
 
 export default function VotingPage() {
@@ -52,19 +53,22 @@ export default function VotingPage() {
   return (
     <div className="page center">
       <div className="top-actions">
-        <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
-        {isHost && (
-          <button className="end-match-btn" onClick={() => setConfirmEndMatch(true)}>End Match</button>
-        )}
-        {!gameState.settings?.discreet_mode && (
-          <button
-            className={`discreet-toggle${localDiscreet ? " active" : ""}`}
-            onClick={() => setLocalDiscreet((d) => !d)}
-          >
-            {localDiscreet ? <EyeOff size={14} /> : <Eye size={14} />}
-            Discreet
-          </button>
-        )}
+        <RoomCodeChip roomId={playerInfo?.roomId} />
+        <div className="top-actions-right">
+          <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
+          {isHost && (
+            <button className="end-match-btn" onClick={() => setConfirmEndMatch(true)}>End Match</button>
+          )}
+          {!gameState.settings?.discreet_mode && (
+            <button
+              className={`discreet-toggle${localDiscreet ? " active" : ""}`}
+              onClick={() => setLocalDiscreet((d) => !d)}
+            >
+              {localDiscreet ? <EyeOff size={14} /> : <Eye size={14} />}
+              Discreet
+            </button>
+          )}
+        </div>
       </div>
 
       <div

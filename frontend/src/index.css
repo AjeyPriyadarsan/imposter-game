@@ -184,6 +184,24 @@ body {
   color: #fbbf24;
 }
 
+.alert-info {
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid #6366f1;
+  color: #a5b4fc;
+  text-align: center;
+}
+
+.host-ended-banner {
+  animation: fadeInOut 4s ease forwards;
+}
+
+@keyframes fadeInOut {
+  0%   { opacity: 0; transform: translateY(-6px); }
+  10%  { opacity: 1; transform: translateY(0); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* =====================
    Room Loading State
    ===================== */
@@ -1705,14 +1723,72 @@ body {
 }
 
 /* =====================
+   Room Code Chip
+   ===================== */
+.room-code-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: var(--primary-light);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 99px;
+  color: #a78bfa;
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.room-code-chip:hover {
+  background: rgba(124, 58, 237, 0.25);
+  border-color: rgba(124, 58, 237, 0.5);
+}
+
+.room-code-chip-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #7c5cbf;
+  text-transform: uppercase;
+}
+
+.room-code-chip-code {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #c4b5fd;
+}
+
+@media (max-width: 480px) {
+  .room-code-chip {
+    padding: 4px 8px;
+    gap: 4px;
+  }
+  .room-code-chip-code {
+    font-size: 12px;
+  }
+}
+
+/* =====================
    Leave Room Button
    ===================== */
 .top-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.top-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .top-actions .leave-btn {

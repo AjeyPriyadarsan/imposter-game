@@ -73,6 +73,7 @@ class RoomManager:
                 "anonymous_voter": False,
             },
             "idle_expires_at": time.time() + 1200,
+            "created_at": time.time(),
         }
         self._save_room(room)
         self.connections[room_id] = {}
@@ -270,6 +271,7 @@ class RoomManager:
         room["last_eliminated_id"] = None
         room["state"] = "playing"
         room["idle_expires_at"] = None
+        room["host_ended"] = False
         room["turn_start_time"] = time.time()
         for p in room["players"].values():
             p["clue"] = None
@@ -588,6 +590,7 @@ class RoomManager:
         room["last_most_voted_ids"] = []
         room["last_eliminated_id"] = None
         room["idle_expires_at"] = time.time() + 1200
+        room["host_ended"] = True
         kicked_or_left = [pid for pid, p in room["players"].items()
                           if p.get("kicked") or p.get("left")]
         for pid in kicked_or_left:
@@ -798,6 +801,7 @@ class RoomManager:
             "current_round": room.get("current_round", 1),
             "total_rounds": room.get("total_rounds", 1),
             "idle_expires_at": room.get("idle_expires_at") if room["state"] == "lobby" else None,
+            "host_ended": room.get("host_ended", False) if room["state"] == "lobby" else False,
         }
 
     async def connect(self, room_id: str, player_id: str, websocket: WebSocket):
