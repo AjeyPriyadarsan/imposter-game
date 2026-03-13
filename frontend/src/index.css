@@ -1403,6 +1403,10 @@ body {
 
 .results-actions {
   padding-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 
 /* =====================
@@ -1814,7 +1818,7 @@ body {
 }
 
 .end-match-btn {
-  display: block;
+  display: inline-block;
   padding: 6px 14px;
   background: transparent;
   border: 1px solid #f59e0b;

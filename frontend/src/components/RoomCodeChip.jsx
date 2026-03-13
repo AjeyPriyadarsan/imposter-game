@@ -5,7 +5,8 @@ export default function RoomCodeChip({ roomId }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
-    navigator.clipboard.writeText(roomId).then(() => {
+    const url = `${window.location.origin}/${roomId}`;
+    navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
