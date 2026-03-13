@@ -763,6 +763,15 @@ class RoomManager:
         in_game = room["state"] not in ("lobby",)
         is_eliminated = room["players"].get(player_id, {}).get("eliminated", False)
 
+        anonymous_role = room.get("settings", {}).get("anonymous_role", False)
+        fellow_imposters = []
+        if is_imposter and in_game and not anonymous_role:
+            fellow_imposters = [
+                {"id": pid, "name": room["players"][pid]["name"]}
+                for pid in room["imposters"]
+                if pid != player_id and pid in room["players"]
+            ]
+
         if in_game:
             word = room["imposter_word"] if is_imposter else room["word"]
         else:
@@ -784,6 +793,7 @@ class RoomManager:
             "clue_order": room["clue_order"],
             "is_imposter": is_imposter,
             "is_eliminated": is_eliminated,
+            "fellow_imposters": fellow_imposters,
             "word": word,
             "results": results,
             "round_end_info": round_end_info,
