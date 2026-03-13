@@ -209,6 +209,22 @@ export function GameProvider({ children }) {
       try {
         setError(null);
         const code = roomId.trim();
+
+        // If a session exists for this room, try to reconnect with the stored player_id
+        const existingSession = loadSession(code);
+        if (existingSession) {
+          const success = await connectWs(code, existingSession.player_id);
+          if (success) {
+            history.pushState(null, "", `/${code}`);
+            setPlayerInfo({ id: existingSession.player_id, name: existingSession.name, roomId: code });
+            setPendingRoomCode(null);
+            return;
+          }
+          // Stored session is stale — clear it and fall through to a fresh join
+          clearSession(code);
+        }
+
+        // Normal fresh join via REST
         const res = await fetch(`${API_URL}/rooms/${code}/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
