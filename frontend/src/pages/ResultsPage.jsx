@@ -94,6 +94,9 @@ export default function ResultsPage() {
         <RoomCodeChip roomId={playerInfo?.roomId} />
         <button className="leave-btn" onClick={() => setConfirmLeave(true)}>Leave Room</button>
       </div>
+      {isHost && currentRound >= totalRounds && (
+        <button className="end-match-btn" style={{ alignSelf: "center", marginBottom: "0.5rem" }} onClick={() => setConfirmEndMatch(true)}>End Match</button>
+      )}
       {totalRounds > 1 && (
         <div className="round-indicator">Round {currentRound} of {totalRounds}</div>
       )}
@@ -233,7 +236,9 @@ export default function ResultsPage() {
             <button className="btn btn-secondary" onClick={handlePlayAgain}>
               Start New Match Now
             </button>
-            <button className="end-match-btn" onClick={() => setConfirmEndMatch(true)}>End Match</button>
+            {currentRound < totalRounds && (
+              <button className="end-match-btn" onClick={() => setConfirmEndMatch(true)}>End Match</button>
+            )}
             <p className="hint">Returning to lobby in {countdown}s...</p>
           </>
         ) : (

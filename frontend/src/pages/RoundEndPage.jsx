@@ -72,6 +72,11 @@ export default function RoundEndPage() {
             ? "No one was eliminated — game continues"
             : "The investigation continues..."}
         </p>
+        {!isAnonymous && eliminated_id && eliminated_was_imposter !== null && (
+          <span className={`badge ${eliminated_was_imposter ? "badge-imposter" : "badge-innocent"}`}>
+            {eliminated_name} was {eliminated_was_imposter ? "an Imposter" : "Innocent"}
+          </span>
+        )}
         {isAnonymous && iAmEliminated && eliminated_was_imposter !== null && (
           isDiscreet ? (
             <div

@@ -99,6 +99,16 @@ export default function GamePage() {
             ) : (
               <p>Blend in. Don't get caught.</p>
             )}
+            {gameState.fellow_imposters?.length > 0 && (
+              <div className="fellow-imposters">
+                <p>Your fellow imposter{gameState.fellow_imposters.length > 1 ? 's' : ''}:</p>
+                <div className="fellow-names">
+                  {gameState.fellow_imposters.map(p => (
+                    <span key={p.id} className="badge">{p.name}</span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="innocent-reveal">
