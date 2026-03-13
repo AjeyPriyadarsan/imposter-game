@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from room_manager import RoomManager
 
 load_dotenv()
-
+#check
 app = FastAPI()
 
 cors_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
