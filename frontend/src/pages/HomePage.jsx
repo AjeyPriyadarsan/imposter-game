@@ -3,10 +3,11 @@ import { useGame } from "../context/GameContext";
 import { Plus, LogIn, ArrowLeft, Gamepad2, Fingerprint, RefreshCw } from "lucide-react";
 
 const CREATE_STEPS = [
-  { delay: 0,    text: "Waking up server…" },
-  { delay: 5000, text: "Starting services…" },
-  { delay: 10000, text: "Creating your room…" },
-  { delay: 15000, text: "Almost there…" },
+  { delay: 0,     text: "Waking up server…" },
+  { delay: 7000,  text: "Starting services…" },
+  { delay: 20000, text: "Almost ready…" },
+  { delay: 35000, text: "Creating your room…" },
+  { delay: 50000, text: "Just a moment…" },
 ];
 
 const JOIN_STEPS = [
@@ -95,9 +96,11 @@ export default function HomePage() {
   }
 
   function handleRetry() {
-    setLoadStatus(null);
-    setLoadMsg("");
-    setMode(null);
+    if (mode === "join") {
+      handleJoin({ preventDefault: () => {} });
+    } else {
+      handleCreate();
+    }
   }
 
   function handleBack() {
@@ -125,7 +128,7 @@ export default function HomePage() {
           <div style={{ textAlign: "center" }}>
             <div key={loadMsg} className="room-loading-msg">{loadMsg}</div>
             <div style={{ color: "var(--text-muted)", fontSize: 12, marginTop: 6 }}>
-              First launch may take up to 30 seconds
+              First launch may take up to 60 seconds
             </div>
           </div>
         </div>
