@@ -139,16 +139,21 @@ export function GameProvider({ children }) {
               setError("Room closed.");
               setTimeout(() => setError(null), 5000);
             } else {
-              // Auto-reconnect once before showing error
+              // Auto-reconnect with retries
               setReconnecting(true);
-              setTimeout(() => {
-                connectWs(roomId, playerId).then((success) => {
-                  setReconnecting(false);
-                  if (!success) {
-                    setError("Connection lost. Please refresh.");
+              (async () => {
+                const delays = [3000, 5000, 8000, 12000, 15000];
+                for (const delay of delays) {
+                  await new Promise((r) => setTimeout(r, delay));
+                  const success = await connectWs(roomId, playerId);
+                  if (success) {
+                    setReconnecting(false);
+                    return;
                   }
-                });
-              }, 3000);
+                }
+                setReconnecting(false);
+                setError("Connection lost. Please refresh.");
+              })();
             }
           }
         }
