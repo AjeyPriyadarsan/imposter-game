@@ -5,6 +5,17 @@ const GameContext = createContext(null);
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000";
 
+async function fetchWithRetry(url, options, retries = 10, delayMs = 7000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+}
+
 function getUrlRoomCode() {
   const path = window.location.pathname.slice(1);
   return /^\d{4}$/.test(path) ? path : null;
@@ -179,7 +190,7 @@ export function GameProvider({ children }) {
     async (name) => {
       try {
         setError(null);
-        const res = await fetch(`${API_URL}/rooms`, {
+        const res = await fetchWithRetry(`${API_URL}/rooms`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ player_name: name }),
@@ -225,7 +236,7 @@ export function GameProvider({ children }) {
         }
 
         // Normal fresh join via REST
-        const res = await fetch(`${API_URL}/rooms/${code}/join`, {
+        const res = await fetchWithRetry(`${API_URL}/rooms/${code}/join`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ player_name: name }),
