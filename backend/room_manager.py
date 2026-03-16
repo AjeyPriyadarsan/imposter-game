@@ -273,6 +273,7 @@ class RoomManager:
         room["idle_expires_at"] = None
         room["host_ended"] = False
         room["turn_start_time"] = time.time()
+        room["player_reactions"] = {}
         for p in room["players"].values():
             p["clue"] = None
             p["vote"] = None
@@ -352,6 +353,21 @@ class RoomManager:
             room["turn_start_time"] = time.time()
         self._save_room(room)
         return True, ""
+
+    def set_reaction(self, room_id: str, player_id: str, emoji: str):
+        ALLOWED = {"😂", "🤔", "😱", "😡"}
+        room = self._get_room(room_id)
+        if not room or room["state"] != "playing":
+            return False, "Not in playing phase"
+        if emoji not in ALLOWED:
+            return False, "Invalid emoji"
+        reactions = room.setdefault("player_reactions", {})
+        if reactions.get(player_id) == emoji:
+            reactions.pop(player_id)
+        else:
+            reactions[player_id] = emoji
+        self._save_room(room)
+        return True, None
 
     def skip_turn(self, room_id: str) -> bool:
         """Skip the current player's turn (timer expired). Returns True if state changed."""
@@ -812,6 +828,7 @@ class RoomManager:
             "total_rounds": room.get("total_rounds", 1),
             "idle_expires_at": room.get("idle_expires_at") if room["state"] == "lobby" else None,
             "host_ended": room.get("host_ended", False) if room["state"] == "lobby" else False,
+            "player_reactions": room.get("player_reactions", {}),
         }
 
     async def connect(self, room_id: str, player_id: str, websocket: WebSocket):
