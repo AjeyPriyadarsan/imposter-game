@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { UserX, Eye, EyeOff, ShieldAlert, AlertTriangle, ShieldCheck } from "lucide-react";
 import { useGame } from "../context/GameContext";
 import ConfirmModal from "../components/ConfirmModal";
@@ -13,6 +13,40 @@ export default function GamePage() {
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [confirmEndMatch, setConfirmEndMatch] = useState(false);
   const [kickTarget, setKickTarget] = useState(null);
+  const [myReaction, setMyReaction] = useState(null);
+  const reactionTimerRef = useRef(null);
+  const prevReactionsRef = useRef({});
+  const [reactionBursts, setReactionBursts] = useState({});
+  const [activeBtn, setActiveBtn] = useState(null);
+
+  useEffect(() => {
+    const serverReaction = gameState?.player_reactions?.[playerInfo?.id] ?? null;
+    setMyReaction(serverReaction);
+  }, [gameState?.player_reactions, playerInfo?.id]);
+
+  useEffect(() => {
+    const reactions = gameState?.player_reactions || {};
+    const prev = prevReactionsRef.current || {};
+    const newBursts = {};
+    for (const [pid, emoji] of Object.entries(reactions)) {
+      if (prev[pid] !== emoji) {
+        newBursts[pid] = { emoji, key: Date.now() + pid };
+      }
+    }
+    if (Object.keys(newBursts).length > 0) {
+      setReactionBursts(prev => ({ ...prev, ...newBursts }));
+      setTimeout(() => {
+        setReactionBursts(prev => {
+          const next = { ...prev };
+          for (const pid of Object.keys(newBursts)) {
+            if (next[pid]?.key === newBursts[pid].key) delete next[pid];
+          }
+          return next;
+        });
+      }, 1100);
+    }
+    prevReactionsRef.current = reactions;
+  }, [gameState?.player_reactions]);
 
   if (!gameState) return <div className="page center"><p>Loading...</p></div>;
 
@@ -181,11 +215,38 @@ export default function GamePage() {
           </form>
         )}
 
+        {gameState.state === "playing" && !isEliminated && !isWordRevealer && (
+          <div className="emoji-picker">
+            {["😂", "🤔", "😱", "😡"].map((emoji) => (
+              <button
+                key={emoji}
+                className={`emoji-btn${myReaction === emoji ? " active" : ""}${activeBtn === emoji ? " clicked" : ""}`}
+                onClick={() => {
+                  const isToggleOff = myReaction === emoji;
+                  sendMessage({ type: "set_reaction", emoji });
+                  setMyReaction(isToggleOff ? null : emoji);
+                  setActiveBtn(emoji);
+                  setTimeout(() => setActiveBtn(null), 150);
+                  if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
+                  if (!isToggleOff) {
+                    reactionTimerRef.current = setTimeout(() => {
+                      sendMessage({ type: "set_reaction", emoji });
+                      setMyReaction(null);
+                    }, 4000);
+                  }
+                }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="clues-section">
           <h3>Clues Given</h3>
           <div className="clue-list">
             {orderedPlayers.map((player, idx) => (
-              <div key={player.id} className="clue-row">
+              <div key={player.id} className="clue-row" style={{ position: "relative" }}>
                 <div className="clue-player-info">
                   <span className="clue-order-num">{idx + 1}</span>
                   <span className="clue-player-name">
@@ -205,6 +266,14 @@ export default function GamePage() {
                     ) : null}
                     {player.word_revealer && (
                       <span className="badge badge-word-revealer">Vote won't count</span>
+                    )}
+                    {gameState.player_reactions?.[player.id] && (
+                      <span
+                        key={gameState.player_reactions[player.id]}
+                        className="player-reaction"
+                      >
+                        {gameState.player_reactions[player.id]}
+                      </span>
                     )}
                   </span>
                   {isHost && player.id !== playerInfo.id && !player.kicked && !player.left && (
@@ -228,6 +297,11 @@ export default function GamePage() {
                     <span className="clue-pending">—</span>
                   )}
                 </div>
+                {reactionBursts[player.id] && (
+                  <span key={reactionBursts[player.id].key} className="reaction-burst">
+                    {reactionBursts[player.id].emoji}
+                  </span>
+                )}
               </div>
             ))}
           </div>

@@ -463,6 +463,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, player_id: str)
                                     cancel_timer(room_id)
                             await manager.broadcast(room_id)
 
+            elif msg_type == "set_reaction":
+                ok, err = manager.set_reaction(room_id, player_id, data.get("emoji", ""))
+                if ok:
+                    await manager.broadcast(room_id)
+                else:
+                    await websocket.send_json({"type": "error", "payload": {"message": err}})
+
             elif msg_type == "ping":
                 await websocket.send_json({"type": "pong"})
 
