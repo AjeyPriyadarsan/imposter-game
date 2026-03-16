@@ -21,3 +21,7 @@ backend/.idea/
 *.iml
 
 impostervenv
+
+# Claude Code files
+CLAUDE.md
+memory/
